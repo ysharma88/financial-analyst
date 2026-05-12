@@ -2352,38 +2352,49 @@ def render_stock_detail(ticker: str, data: dict):
         st.divider()
         st.markdown("##### Enhanced Technical Analysis")
         te = data.get("tech_enhanced")
+
+        def _fmt(val, fmt="+.1f", suffix="%", fallback="N/A"):
+            if val is None:
+                return fallback
+            return f"{val:{fmt}}{suffix}"
+
         if te:
             te_c1, te_c2, te_c3 = st.columns(3)
             rs = getattr(te, "rs", None)
             if rs:
-                rs_color = "#00C853" if rs.rs_composite and rs.rs_composite > 0 else "#FF1744"
-                te_c1.markdown(f"<div style='padding:0.8rem;background:{rs_color}11;border:1px solid {rs_color}44;border-radius:8px'>"
-                               f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Relative Strength</div>"
-                               f"<div style='color:{rs_color};font-size:1.4rem;font-weight:700'>{rs.rs_signal or 'N/A'}</div>"
-                               f"<div style='color:#aaa;font-size:0.82rem'>RS Composite: {rs.rs_composite:+.1f}%</div>"
-                               f"<div style='color:#666;font-size:0.75rem'>1M: {rs.rs_1m:+.1f}%  3M: {rs.rs_3m:+.1f}%</div>"
-                               f"</div>", unsafe_allow_html=True)
+                rs_composite = getattr(rs, "rs_composite", None)
+                rs_color = "#00C853" if rs_composite and rs_composite > 0 else "#FF1744"
+                te_c1.markdown(
+                    f"<div style='padding:0.8rem;background:{rs_color}11;border:1px solid {rs_color}44;border-radius:8px'>"
+                    f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Relative Strength</div>"
+                    f"<div style='color:{rs_color};font-size:1.4rem;font-weight:700'>{getattr(rs, 'rs_signal', None) or 'N/A'}</div>"
+                    f"<div style='color:#aaa;font-size:0.82rem'>RS Composite: {_fmt(rs_composite)}</div>"
+                    f"<div style='color:#666;font-size:0.75rem'>1M: {_fmt(getattr(rs, 'rs_1m', None))}  3M: {_fmt(getattr(rs, 'rs_3m', None))}</div>"
+                    f"</div>", unsafe_allow_html=True)
             mom = getattr(te, "momentum", None)
             if mom:
-                mom_color = "#00C853" if getattr(mom, "momentum_signal", "") == "BULLISH" else "#FF1744" if getattr(mom, "momentum_signal", "") == "BEARISH" else "#FFD54F"
-                te_c2.markdown(f"<div style='padding:0.8rem;background:{mom_color}11;border:1px solid {mom_color}44;border-radius:8px'>"
-                               f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Momentum (ROC)</div>"
-                               f"<div style='color:{mom_color};font-size:1.4rem;font-weight:700'>{mom.momentum_signal or 'N/A'}</div>"
-                               f"<div style='color:#aaa;font-size:0.82rem'>12-1: {mom.momentum_12_1:+.1f}%</div>"
-                               f"<div style='color:#666;font-size:0.75rem'>1M: {mom.roc_1m:+.1f}%  3M: {mom.roc_3m:+.1f}%</div>"
-                               f"</div>", unsafe_allow_html=True)
+                mom_signal = getattr(mom, "momentum_signal", "") or ""
+                mom_color = "#00C853" if mom_signal == "BULLISH" else "#FF1744" if mom_signal == "BEARISH" else "#FFD54F"
+                te_c2.markdown(
+                    f"<div style='padding:0.8rem;background:{mom_color}11;border:1px solid {mom_color}44;border-radius:8px'>"
+                    f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Momentum (ROC)</div>"
+                    f"<div style='color:{mom_color};font-size:1.4rem;font-weight:700'>{mom_signal or 'N/A'}</div>"
+                    f"<div style='color:#aaa;font-size:0.82rem'>12-1: {_fmt(getattr(mom, 'momentum_12_1', None))}</div>"
+                    f"<div style='color:#666;font-size:0.75rem'>1M: {_fmt(getattr(mom, 'roc_1m', None))}  3M: {_fmt(getattr(mom, 'roc_3m', None))}</div>"
+                    f"</div>", unsafe_allow_html=True)
             struct = getattr(te, "structure", None)
             if struct:
-                struct_color = "#00C853" if getattr(struct, "structure_signal", "") in ("BULLISH", "NEAR_HIGH") else "#FFA726"
+                struct_signal = getattr(struct, "structure_signal", "") or ""
+                struct_color = "#00C853" if struct_signal in ("BULLISH", "NEAR_HIGH") else "#FFA726"
                 pct_from_high = getattr(struct, "pct_from_52w_high", None)
                 vs_vwap = getattr(struct, "price_vs_vwap_90d", None)
-                if pct_from_high is not None and vs_vwap is not None:
-                    te_c3.markdown(f"<div style='padding:0.8rem;background:{struct_color}11;border:1px solid {struct_color}44;border-radius:8px'>"
-                                   f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Price Structure</div>"
-                                   f"<div style='color:{struct_color};font-size:1.4rem;font-weight:700'>{struct.structure_signal or 'N/A'}</div>"
-                                   f"<div style='color:#aaa;font-size:0.82rem'>From 52W High: {pct_from_high:+.1f}%</div>"
-                                   f"<div style='color:#666;font-size:0.75rem'>vs VWAP90: {vs_vwap:+.1f}%</div>"
-                                   f"</div>", unsafe_allow_html=True)
+                te_c3.markdown(
+                    f"<div style='padding:0.8rem;background:{struct_color}11;border:1px solid {struct_color}44;border-radius:8px'>"
+                    f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>Price Structure</div>"
+                    f"<div style='color:{struct_color};font-size:1.4rem;font-weight:700'>{struct_signal or 'N/A'}</div>"
+                    f"<div style='color:#aaa;font-size:0.82rem'>From 52W High: {_fmt(pct_from_high)}</div>"
+                    f"<div style='color:#666;font-size:0.75rem'>vs VWAP90: {_fmt(vs_vwap)}</div>"
+                    f"</div>", unsafe_allow_html=True)
         else:
             st.info("Enhanced technical data unavailable.")
 
