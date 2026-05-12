@@ -1120,8 +1120,11 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
     forensic_result = _forensic.cached_analyze(ticker=ticker, quality_scores=_qs_dict)
 
     # New institutional-grade modules
+    import traceback as _tb
+
     eq_analyzer = EarningsQualityAnalyzer()
     earnings_quality_result = None
+    _eq_error = None
     try:
         earnings_quality_result = eq_analyzer.analyze(
             info=fetcher.info,
@@ -1130,11 +1133,12 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
             cashflow=cashflow_stmt,
             earnings_history=earnings_history,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _eq_error = f"EarningsQuality error: {e}\n{_tb.format_exc()}"
 
     ce_analyzer = CapitalEfficiencyAnalyzer()
     capital_efficiency_result = None
+    _ce_error = None
     try:
         capital_efficiency_result = ce_analyzer.analyze(
             info=fetcher.info,
@@ -1142,29 +1146,32 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
             balance_sheet=balance_sheet_full,
             cashflow=cashflow_stmt,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _ce_error = f"CapitalEfficiency error: {e}\n{_tb.format_exc()}"
 
     te_analyzer = TechnicalEnhancedAnalyzer()
     tech_enhanced_result = None
+    _te_error = None
     try:
         tech_enhanced_result = te_analyzer.analyze(
             ticker=ticker,
             history=history,
             info=fetcher.info,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _te_error = f"TechnicalEnhanced error: {e}\n{_tb.format_exc()}"
 
     cc_analyzer = CreditConditionsAnalyzer()
     credit_conditions_result = None
+    _cc_error = None
     try:
         credit_conditions_result = cc_analyzer.analyze()
-    except Exception:
-        pass
+    except Exception as e:
+        _cc_error = f"CreditConditions error: {e}\n{_tb.format_exc()}"
 
     sm_analyzer = SectorMetricsAnalyzer()
     sector_metrics_result = None
+    _sm_error = None
     try:
         sector_metrics_result = sm_analyzer.analyze(
             ticker=ticker,
@@ -1173,8 +1180,16 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
             balance_sheet=balance_sheet_full,
             cashflow=cashflow_stmt,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _sm_error = f"SectorMetrics error: {e}\n{_tb.format_exc()}"
+
+    _module_errors = {k: v for k, v in {
+        "earnings_quality": _eq_error,
+        "capital_efficiency": _ce_error,
+        "tech_enhanced": _te_error,
+        "credit_conditions": _cc_error,
+        "sector_metrics": _sm_error,
+    }.items() if v}
 
     return {
         "company_info": company_info,
@@ -1205,6 +1220,7 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
         "tech_enhanced": tech_enhanced_result,
         "credit_conditions": credit_conditions_result,
         "sector_metrics": sector_metrics_result,
+        "_module_errors": _module_errors,
     }
 
 
@@ -2061,6 +2077,14 @@ def render_stock_detail(ticker: str, data: dict):
             st.plotly_chart(create_gauge(tech_result.overall_score, "Technical"), use_container_width=True)
         with g3:
             st.plotly_chart(create_gauge(verdict.composite_score, "Multi-Factor"), use_container_width=True)
+
+        # Show any module errors so they're not silently hidden
+        module_errors = data.get("_module_errors", {})
+        if module_errors:
+            with st.expander(f"⚠️ {len(module_errors)} module error(s) — click to expand", expanded=False):
+                for mod, err in module_errors.items():
+                    st.error(f"**{mod}**")
+                    st.code(err, language="text")
 
     # ── TAB 2: BUSINESS QUALITY ──
     with tab_business:
