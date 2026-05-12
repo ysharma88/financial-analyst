@@ -975,7 +975,7 @@ def create_metric_comparison_chart(stock_results: dict, metric_name: str, metric
 # ---------------------------------------------------------------------------
 # Main analysis (cached per ticker)
 # ---------------------------------------------------------------------------
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_resource(ttl=900, show_spinner=False)
 def run_single_analysis(ticker: str, period: str, f_weight: int):
     fetcher = StockDataFetcher(ticker)
     if not fetcher.validate():
@@ -1461,19 +1461,19 @@ def create_institutional_bar(inst_df: pd.DataFrame) -> go.Figure:
 # ---------------------------------------------------------------------------
 # Macro & Sector cached analysis
 # ---------------------------------------------------------------------------
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_resource(ttl=1800, show_spinner=False)
 def run_macro_analysis():
     analyzer = MacroAnalyzer()
     return analyzer.analyze()
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_resource(ttl=1800, show_spinner=False)
 def run_sector_analysis(cycle_phase: str, rates_rising: bool):
     analyzer = SectorAnalyzer()
     return analyzer.analyze(cycle_phase=cycle_phase, rates_rising=rates_rising)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_resource(ttl=1800, show_spinner=False)
 def run_stock_screener(sector: str, max_stocks: int, min_mc: float, max_pe, max_de, min_roe, min_rg):
     screener = StockScreener()
     return screener.screen_sector(
@@ -1484,7 +1484,7 @@ def run_stock_screener(sector: str, max_stocks: int, min_mc: float, max_pe, max_
     )
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_resource(ttl=900, show_spinner=False)
 def run_news_analysis(ticker: str, company_name: str):
     analyzer = NewsSentimentAnalyzer()
     return analyzer.analyze(ticker, company_name)
