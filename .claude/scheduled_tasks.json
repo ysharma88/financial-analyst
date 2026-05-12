@@ -1,0 +1,26 @@
+{
+  "tasks": [
+    {
+      "id": "759b507b",
+      "cron": "3 20-23 * * *",
+      "prompt": "Run the nightly portfolio analysis check. Do the following steps in order:\n\n1. Run watchlist check: `cd /Users/yogesh.sharma/.claude/skills/financial-analyst-skill/agents/scripts && python3 watchlist_check.py`\n2. Run portfolio review: `python3 portfolio_review.py`\n3. Load the latest verdicts from `/Users/yogesh.sharma/.claude/skills/financial-analyst-skill/data/verdicts.jsonl` and sr_levels from `data/sr_levels.jsonl`\n4. Check if any watchlist stock has hit or is within 2% of its Patient Entry price from Task #2 (UBER $74, BRK-B $470, AMZN $259, GOOGL $378, ASML $1488, NVDA $211, SHOP $105)\n5. Check if any held position (META, MSFT, NFLX, TEAM, TSLA) has breached its stop-loss\n6. Report a concise summary: TRIGGERED entries, STOP-LOSS breaches, and any position needing immediate action. If nothing changed, say \"No changes — all positions within range.\"",
+      "createdAt": 1778473270578,
+      "lastFiredAt": 1778593065984,
+      "recurring": true,
+      "createdBySessionId": "59a6885a-73ab-44a5-8416-e29ab5961f15",
+      "createdByPid": 50804,
+      "createdByProcStart": "Sun May 10 23:55:55 2026"
+    },
+    {
+      "id": "103d1959",
+      "cron": "3 0 * * *",
+      "prompt": "Run the nightly portfolio analysis check. Do the following steps in order:\n\n1. Run watchlist check: `cd /Users/yogesh.sharma/.claude/skills/financial-analyst-skill/agents/scripts && python3 watchlist_check.py`\n2. Run portfolio review: `python3 portfolio_review.py`\n3. Load the latest verdicts from `/Users/yogesh.sharma/.claude/skills/financial-analyst-skill/data/verdicts.jsonl` and sr_levels from `data/sr_levels.jsonl`\n4. Check if any watchlist stock has hit or is within 2% of its Patient Entry price from Task #2 (UBER $74, BRK-B $470, AMZN $259, GOOGL $378, ASML $1488, NVDA $211, SHOP $105)\n5. Check if any held position (META, MSFT, NFLX, TEAM, TSLA) has breached its stop-loss\n6. Report a concise summary: TRIGGERED entries, STOP-LOSS breaches, and any position needing immediate action. If nothing changed, say \"No changes — all positions within range.\"",
+      "createdAt": 1778473275055,
+      "lastFiredAt": 1778509980979,
+      "recurring": true,
+      "createdBySessionId": "59a6885a-73ab-44a5-8416-e29ab5961f15",
+      "createdByPid": 50804,
+      "createdByProcStart": "Sun May 10 23:55:55 2026"
+    }
+  ]
+}

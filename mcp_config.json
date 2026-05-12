@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "financial-analyst": {
+      "command": "/Users/yogesh.sharma/Documents/financial_analyst-main/.venv/bin/python",
+      "args": ["/Users/yogesh.sharma/Documents/financial_analyst-main/mcp_server.py"],
+      "env": {
+        "ANTHROPIC_API_KEY": "<your-key-here>"
+      }
+    }
+  }
+}
