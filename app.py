@@ -2288,8 +2288,8 @@ def render_stock_detail(ticker: str, data: dict):
                 })
             peer_df = pd.DataFrame(peer_rows)
             st.dataframe(peer_df, use_container_width=True, hide_index=True)
-            if peer_comps_result.summary:
-                st.caption(peer_comps_result.summary)
+            if peer_comps_result.error:
+                st.caption(f"⚠️ {peer_comps_result.error}")
         else:
             st.info("Peer comparison data unavailable.")
 
