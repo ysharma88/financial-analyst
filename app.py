@@ -1943,8 +1943,8 @@ def render_stock_detail(ticker: str, data: dict):
 
     # Gate 4: Trade setup (risk profile has stop and target)
     rp = data.get("risk_profile")
-    has_stop = rp and any(getattr(s, "stop_price", None) or getattr(s, "price", None) for s in (rp.stop_loss_levels or []))
-    has_target = rp and rp.target_prices and len(rp.target_prices) > 0
+    has_stop = rp and bool(getattr(rp, "stop_losses", []))
+    has_target = rp and bool(getattr(rp, "risk_reward", []))
     trade_label = "READY" if (has_stop or has_target) else "SETUP NEEDED"
     trade_color = "#00C853" if (has_stop or has_target) else "#FFA726"
 
@@ -2432,35 +2432,44 @@ def render_stock_detail(ticker: str, data: dict):
         st.markdown("##### Risk & Position Sizing")
         if rp:
             rm1, rm2, rm3, rm4 = st.columns(4)
-            rm1.metric("Suggested Position", format_large_number(getattr(rp, "suggested_position_size", None)))
-            rm2.metric("Risk Amount", format_large_number(getattr(rp, "risk_amount", None)))
-            sharpe = getattr(rp, "sharpe_ratio", None) or getattr(rp, "sharpe_approx", None)
+            pos_sizes = getattr(rp, "position_sizes", []) or []
+            first_pos = pos_sizes[0] if pos_sizes else None
+            rm1.metric("Suggested Shares", str(first_pos.shares) if first_pos else "N/A")
+            rm2.metric("Risk Amount", format_large_number(first_pos.risk_amount if first_pos else None))
+            sharpe = getattr(rp, "sharpe_approx", None)
             rm3.metric("Sharpe Ratio", f"{sharpe:.2f}" if sharpe is not None else "N/A")
             max_dd = getattr(rp, "max_drawdown", None)
-            rm4.metric("Max Drawdown", f"{max_dd:.1f}%" if max_dd is not None else "N/A")
+            rm4.metric("Max Drawdown", f"{max_dd:.1%}" if max_dd is not None else "N/A")
 
-            stop_levels = getattr(rp, "stop_loss_levels", None) or getattr(rp, "stop_losses", []) or []
-            target_prices = getattr(rp, "target_prices", []) or []
+            stop_levels = getattr(rp, "stop_losses", []) or []
+            rr_scenarios = getattr(rp, "risk_reward", []) or []
             sl_col, tp_col = st.columns(2)
             with sl_col:
                 st.markdown("**Stop-Loss Levels**")
                 for sl in stop_levels[:4]:
-                    stop_price = getattr(sl, "stop_price", None) or getattr(sl, "price", None)
-                    sl_type = getattr(sl, "stop_type", getattr(sl, "type", getattr(sl, "method", "")))
-                    if stop_price:
-                        st.markdown(f"<div style='padding:0.4rem 0.6rem;background:rgba(255,23,68,0.06);border-left:3px solid #FF1744;border-radius:0 8px 8px 0;margin-bottom:0.25rem;font-size:0.85rem'>"
-                                    f"<span style='color:white;font-weight:600'>${stop_price:.2f}</span>  <span style='color:#888'>{sl_type}</span></div>", unsafe_allow_html=True)
+                    stop_price = sl.stop_price
+                    sl_type = sl.method
+                    st.markdown(
+                        f"<div style='padding:0.4rem 0.6rem;background:rgba(255,23,68,0.06);"
+                        f"border-left:3px solid #FF1744;border-radius:0 8px 8px 0;margin-bottom:0.25rem;font-size:0.85rem'>"
+                        f"<span style='color:white;font-weight:600'>${stop_price:.2f}</span>"
+                        f"  <span style='color:#888'>{sl_type}</span></div>",
+                        unsafe_allow_html=True,
+                    )
             with tp_col:
-                st.markdown("**Target Prices**")
-                for tp in target_prices[:4]:
-                    tp_val = tp if isinstance(tp, (int, float)) else getattr(tp, "price", None)
-                    if tp_val:
-                        entry_p = company_info.get("price") or 0
-                        first_stop = stop_levels[0] if stop_levels else None
-                        first_stop_price = (first_stop if isinstance(first_stop, (int, float)) else getattr(first_stop, "stop_price", None) or getattr(first_stop, "price", entry_p * 0.95)) if first_stop else entry_p * 0.95
-                        rr = (tp_val - entry_p) / max(0.01, entry_p - first_stop_price) if entry_p else 0
-                        st.markdown(f"<div style='padding:0.4rem 0.6rem;background:rgba(0,200,83,0.06);border-left:3px solid #00C853;border-radius:0 8px 8px 0;margin-bottom:0.25rem;font-size:0.85rem'>"
-                                    f"<span style='color:white;font-weight:600'>${tp_val:.2f}</span>  <span style='color:#888'>R:R {rr:.1f}:1</span></div>", unsafe_allow_html=True)
+                st.markdown("**Risk / Reward Targets**")
+                for scenario in rr_scenarios[:4]:
+                    tp_val = scenario.target_price
+                    rr_ratio = getattr(scenario, "risk_reward_ratio", None)
+                    label = getattr(scenario, "label", "Target")
+                    rr_str = f"  R:R {rr_ratio:.1f}:1" if rr_ratio else ""
+                    st.markdown(
+                        f"<div style='padding:0.4rem 0.6rem;background:rgba(0,200,83,0.06);"
+                        f"border-left:3px solid #00C853;border-radius:0 8px 8px 0;margin-bottom:0.25rem;font-size:0.85rem'>"
+                        f"<span style='color:white;font-weight:600'>${tp_val:.2f}</span>"
+                        f"  <span style='color:#888'>{label}{rr_str}</span></div>",
+                        unsafe_allow_html=True,
+                    )
         else:
             st.info("Risk profile unavailable.")
 
@@ -2687,7 +2696,7 @@ if analyze_btn:
         with ex_c3:
             st.markdown("<div class='rpt-section'>RISK</div>", unsafe_allow_html=True)
             sharpe_str = f"{rp.sharpe_approx:.2f}" if rp and rp.sharpe_approx else "—"
-            maxdd_str = f"{rp.max_drawdown:.1f}%" if rp and rp.max_drawdown else "—"
+            maxdd_str = f"{rp.max_drawdown:.1%}" if rp and rp.max_drawdown else "—"
             var_str = f"{rp.var_95:.2%}" if rp and rp.var_95 else "—"
             st.markdown(
                 f"<div style='font-size:1.5rem;font-weight:700;color:#fff'>{sharpe_str}</div>"
