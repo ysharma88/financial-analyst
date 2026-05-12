@@ -2494,14 +2494,20 @@ def render_stock_detail(ticker: str, data: dict):
             rr_cc = getattr(cc, "real_rates", None)
             cc_cols = st.columns(4)
             if hy:
-                cc_cols[0].metric("HY Spread", f"{hy.current_bps:.0f}bps" if hy.current_bps else "N/A")
+                hy_perf = getattr(hy, "relative_performance_1m", None)
+                cc_cols[0].metric("HY vs Duration (1M)", f"{hy_perf:+.1%}" if hy_perf is not None else "N/A")
                 cc_cols[1].metric("HY Signal", hy.signal or "N/A")
             if ig:
-                cc_cols[2].metric("IG Spread", f"{ig.current_bps:.0f}bps" if ig.current_bps else "N/A")
+                ig_perf = getattr(ig, "relative_performance_1m", None)
+                cc_cols[2].metric("IG vs Duration (1M)", f"{ig_perf:+.1%}" if ig_perf is not None else "N/A")
             if rr_cc:
                 cc_cols[3].metric("Real Rates", rr_cc.signal or "N/A")
-            st.markdown(f"<div style='padding:0.6rem 1rem;background:{cc_color}18;border:1px solid {cc_color}55;border-radius:8px;margin:0.5rem 0'>"
-                        f"<span style='color:{cc_color};font-weight:700'>{cc.financial_conditions_signal or 'N/A'}</span>  ·  Score: {cc.credit_score:+.3f}  ·  {cc.summary}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='padding:0.6rem 1rem;background:{cc_color}18;border:1px solid {cc_color}55;border-radius:8px;margin:0.5rem 0'>"
+                f"<span style='color:{cc_color};font-weight:700'>{cc.financial_conditions_signal or 'N/A'}</span>"
+                f"  ·  Score: {cc.credit_score:+.3f}  ·  {cc.summary}</div>",
+                unsafe_allow_html=True,
+            )
             if getattr(cc, "equity_implications", None):
                 st.caption(f"Equity implications: {cc.equity_implications}")
         else:
