@@ -2278,7 +2278,7 @@ def render_stock_detail(ticker: str, data: dict):
                     "Ticker": p.ticker,
                     "Company": p.name,
                     "Price": f"${p.price:.2f}" if p.price else "N/A",
-                    "P/E": f"{p.pe_ratio:.1f}" if p.pe_ratio else "N/A",
+                    "P/E": f"{p.pe_trailing:.1f}" if p.pe_trailing else "N/A",
                     "P/S": f"{p.ps_ratio:.2f}" if p.ps_ratio else "N/A",
                     "P/B": f"{p.pb_ratio:.2f}" if p.pb_ratio else "N/A",
                     "EV/EBITDA": f"{p.ev_ebitda:.1f}" if p.ev_ebitda else "N/A",
