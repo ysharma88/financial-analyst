@@ -1,7 +1,8 @@
 """Discord bot for the Financial Analyst app.
 
 Polls a Discord channel for commands and responds with AI-powered analysis.
-Also posts an automatic daily portfolio summary from TWS at a configurable time.
+Also posts an automatic daily portfolio summary from TWS at a configurable time,
+and earnings countdown alerts at 7-day, 2-day, and 1-day thresholds.
 
 Commands (prefix: !):
   !analyze  <TICKER>   Full fundamental + technical summary
@@ -9,12 +10,15 @@ Commands (prefix: !):
   !dcf      <TICKER>   DCF intrinsic value estimate
   !score    <TICKER>   Quality scores (Piotroski, Altman, Beneish)
   !portfolio           Daily portfolio summary from TWS (on demand)
+  !earnings            Show upcoming earnings calendar for portfolio (next 30 days)
   !help                List available commands
 
 Env vars:
   DISCORD_BOT_TOKEN      — required
   DISCORD_CHANNEL_ID     — optional, restrict to one channel
   DAILY_SUMMARY_TIME     — HH:MM in 24h (default "16:30", after US market close)
+  EARNINGS_ALERT_TIME    — HH:MM in 24h (default "09:00", morning before market open)
+  PORTFOLIO_TICKERS      — comma-separated fallback if TWS unavailable (e.g. "AAPL,NVDA")
   TWS_HOST               — default 127.0.0.1
   TWS_PORT               — default 7497 (paper); 7496 = live
   TWS_CLIENT_ID          — default 10
@@ -55,6 +59,14 @@ try:
     DAILY_SUMMARY_TIME = dtime(int(_h), int(_m))
 except Exception:
     DAILY_SUMMARY_TIME = dtime(16, 30)
+
+# Earnings alerts fire at this local time (default 09:00, before market open)
+_alert_time_str = os.getenv("EARNINGS_ALERT_TIME", "09:00")
+try:
+    _ah, _am = _alert_time_str.split(":")
+    EARNINGS_ALERT_TIME = dtime(int(_ah), int(_am))
+except Exception:
+    EARNINGS_ALERT_TIME = dtime(9, 0)
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +362,43 @@ def _run_portfolio() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Earnings calendar command + alert runner
+# ---------------------------------------------------------------------------
+
+def _run_earnings_calendar() -> str:
+    """Return upcoming earnings for all portfolio tickers (next 30 days)."""
+    from earnings_alerts import get_upcoming_calendar
+    entries = get_upcoming_calendar()
+    if not entries:
+        return "📅 No earnings found for portfolio tickers in the next 30 days."
+
+    timing_emoji = {"BMO": "🌅", "AMC": "🌙", "unconfirmed": "🕐"}
+    urgency_emoji = {0: "🚨", 1: "🚨", 2: "⚠️", 3: "⚠️", 4: "📅", 5: "📅", 6: "📅", 7: "📅"}
+
+    lines = ["**📅 Upcoming Earnings — Portfolio (next 30 days)**", ""]
+    for ticker, ed, timing, days in entries:
+        te = timing_emoji.get(timing, "🕐")
+        ue = urgency_emoji.get(days, "📅")
+        day_str = "TODAY" if days == 0 else f"in {days}d"
+        lines.append(f"{ue} **{ticker}** — {ed.strftime('%b %d')} ({day_str})  {te} {timing}")
+
+    lines.append("\n_Dates from Yahoo Finance. Confirm with IR calendar._")
+    return "\n".join(lines)
+
+
+def _run_earnings_alerts() -> list[str]:
+    """Check for due earnings alerts (7/2/1-day thresholds) and return formatted messages."""
+    from earnings_alerts import check_due_alerts, format_alert, _chunk as _ea_chunk
+    alerts = check_due_alerts()
+    if not alerts:
+        return []
+    messages = []
+    for alert in alerts:
+        messages.append(format_alert(alert))
+    return messages
+
+
+# ---------------------------------------------------------------------------
 # Discord Bot
 # ---------------------------------------------------------------------------
 
@@ -360,14 +409,19 @@ class FinancialBot(discord.Client):
         super().__init__(intents=intents, **kwargs)
         self.allowed_channel_id = allowed_channel_id
         self._last_summary_date: Optional[str] = None
+        self._last_alerts_date: Optional[str] = None
 
     async def setup_hook(self):
         self._daily_summary_loop.start()
+        self._earnings_alert_loop.start()
 
     async def on_ready(self):
         logger.info("Discord bot logged in as %s (id=%s)", self.user, self.user.id)
         ch = f"channel {self.allowed_channel_id}" if self.allowed_channel_id else "all channels"
-        logger.info("Listening on %s | Daily summary at %s", ch, DAILY_SUMMARY_TIME.strftime("%H:%M"))
+        logger.info(
+            "Listening on %s | Daily summary at %s | Earnings alerts at %s",
+            ch, DAILY_SUMMARY_TIME.strftime("%H:%M"), EARNINGS_ALERT_TIME.strftime("%H:%M"),
+        )
 
     @tasks.loop(minutes=1)
     async def _daily_summary_loop(self):
@@ -387,8 +441,46 @@ class FinancialBot(discord.Client):
             logger.info("Posting daily portfolio summary to channel %s", channel.id)
             await self._send_portfolio(channel)
 
+    @tasks.loop(minutes=1)
+    async def _earnings_alert_loop(self):
+        """Check for due earnings alerts once per day at EARNINGS_ALERT_TIME.
+
+        Fires at 7-day, 2-day, and 1-day thresholds before earnings date.
+        Each alert includes: date/timing, EPS/revenue estimates, options-implied
+        expected move, beat/miss history, key metrics, and AI briefing.
+        """
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+        if (
+            now.hour == EARNINGS_ALERT_TIME.hour
+            and now.minute == EARNINGS_ALERT_TIME.minute
+            and self._last_alerts_date != today_str
+        ):
+            self._last_alerts_date = today_str
+            channel = self._get_target_channel()
+            if channel is None:
+                logger.warning("Earnings alerts: no target channel found")
+                return
+            logger.info("Running earnings alert scan at %s", now.strftime("%H:%M"))
+            loop = asyncio.get_event_loop()
+            try:
+                messages = await loop.run_in_executor(None, _run_earnings_alerts)
+            except Exception as e:
+                logger.error("Earnings alert scan failed: %s", traceback.format_exc())
+                messages = [f"⚠️ Earnings alert error: {e}"]
+            if messages:
+                for msg in messages:
+                    for chunk in _chunk(msg):
+                        await channel.send(chunk)
+            else:
+                logger.info("Earnings alerts: no alerts due today")
+
     @_daily_summary_loop.before_loop
     async def _before_loop(self):
+        await self.wait_until_ready()
+
+    @_earnings_alert_loop.before_loop
+    async def _before_alerts_loop(self):
         await self.wait_until_ready()
 
     def _get_target_channel(self) -> Optional[discord.TextChannel]:
@@ -439,9 +531,12 @@ class FinancialBot(discord.Client):
                 "!dcf      <TICKER>  DCF intrinsic value\n"
                 "!score    <TICKER>  Quality scores (Piotroski / Altman / Beneish)\n"
                 "!portfolio          Live portfolio summary from TWS\n"
+                "!earnings           Upcoming earnings calendar (next 30 days)\n"
+                "!earnings <TICKER>  Full earnings alert for any ticker\n"
                 "!help               Show this message\n"
                 "```\n"
-                f"Daily summary auto-posts at **{DAILY_SUMMARY_TIME.strftime('%H:%M')}**.\n"
+                f"Daily summary: **{DAILY_SUMMARY_TIME.strftime('%H:%M')}**  |  "
+                f"Earnings alerts: **{EARNINGS_ALERT_TIME.strftime('%H:%M')}** (7d/2d/1d before).\n"
                 "Example: `!analyze AAPL`"
             )
             return
@@ -449,6 +544,40 @@ class FinancialBot(discord.Client):
         if cmd == "portfolio":
             async with message.channel.typing():
                 await self._send_portfolio(message.channel)
+            return
+
+        if cmd == "earnings":
+            # !earnings          → upcoming calendar for portfolio (next 30 days)
+            # !earnings TICKER   → on-demand alert for a specific ticker
+            async with message.channel.typing():
+                loop = asyncio.get_event_loop()
+                if arg:
+                    # On-demand alert for a specific ticker
+                    def _single_alert(ticker):
+                        from earnings_alerts import _get_earnings_date, build_alert, format_alert
+                        ed, timing = _get_earnings_date(ticker)
+                        if ed is None:
+                            return f"📅 No upcoming earnings found for **{ticker}**."
+                        from datetime import date
+                        days = (ed - date.today()).days
+                        alert = build_alert(ticker, ed, timing)
+                        return format_alert(alert)
+                    try:
+                        reply = await loop.run_in_executor(None, _single_alert, arg)
+                    except Exception as e:
+                        logger.error("Earnings alert error: %s", traceback.format_exc())
+                        reply = f"⚠️ Earnings alert error for **{arg}**: {e}"
+                    for chunk in _chunk(reply):
+                        await message.channel.send(chunk)
+                else:
+                    # Portfolio calendar
+                    try:
+                        reply = await loop.run_in_executor(None, _run_earnings_calendar)
+                    except Exception as e:
+                        logger.error("Earnings calendar error: %s", traceback.format_exc())
+                        reply = f"⚠️ Earnings calendar error: {e}"
+                    for chunk in _chunk(reply):
+                        await message.channel.send(chunk)
             return
 
         if cmd in ("analyze", "price", "dcf", "score"):

@@ -314,19 +314,44 @@ def _fetch_filing_text(cik: str, accession: str) -> Optional[str]:
     return None
 
 
+def _strip_html(text: str) -> str:
+    """Strip HTML/XBRL tags and decode common entities to plain text."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"&#\d+;", " ", text)
+    text = re.sub(r"&amp;", "&", text)
+    text = re.sub(r"&lt;", "<", text)
+    text = re.sub(r"&gt;", ">", text)
+    text = re.sub(r"&nbsp;", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+# Body-signal phrases that appear in the real section opener (not TOC/xref)
+_BODY_SIGNALS = re.compile(
+    r"(following discussion|should be read in conjunction|results of operations"
+    r"|year ended|fiscal year|compared to the prior|year-over-year"
+    r"|increase(?:d)? by|decrease(?:d)? by|we recorded|net revenue was"
+    r"|net sales (?:were|increased|decreased)|revenue (?:increased|decreased|grew))",
+    re.I,
+)
+
+
 def _extract_section(text: str, section_patterns: list[str], end_patterns: list[str],
                      max_chars: int = 12000) -> str:
     """Extract a named section from a filing by regex pattern matching.
 
-    Large filings (20-F, 10-K) repeat section headers in a table of contents,
-    sub-section cross-references, and the actual body. We collect all matching
-    positions and return the candidate whose body has the most words, subject
-    to a minimum of 50 words. This picks the real section over TOC entries.
+    Pre-strips HTML so all pattern matching and position arithmetic operate on
+    clean prose text — avoids XBRL/CSS noise that inflates positions in raw HTML.
+
+    Large filings repeat section headers in TOC, cross-references, and body.
+    Pass 1 prefers the candidate whose first 500 clean chars contain a financial
+    body-signal phrase. Pass 2 falls back to the largest candidate.
     """
-    text_lower = text.lower()
+    clean = _strip_html(text)
+    clean_lower = clean.lower()
+
     candidates = []
     for pat in section_patterns:
-        for m in re.finditer(pat, text_lower):
+        for m in re.finditer(pat, clean_lower):
             candidates.append(m.start())
 
     if not candidates:
@@ -334,27 +359,33 @@ def _extract_section(text: str, section_patterns: list[str], end_patterns: list[
 
     candidates.sort()
 
-    def _clean(raw: str) -> str:
-        raw = re.sub(r"<[^>]+>", " ", raw)
-        raw = re.sub(r"&#\d+;", " ", raw)
-        raw = re.sub(r"&amp;", "&", raw)
-        raw = re.sub(r"&lt;", "<", raw)
-        raw = re.sub(r"&gt;", ">", raw)
-        raw = re.sub(r"&nbsp;", " ", raw)
-        return re.sub(r"\s+", " ", raw).strip()
+    # Pass 1: first candidate with a body-signal in its opening 500 chars
+    for start in candidates:
+        window = clean[start: start + 500]
+        if _BODY_SIGNALS.search(window):
+            end = len(clean)
+            for pat in end_patterns:
+                m = re.search(pat, clean_lower[start + 100:])
+                if m:
+                    end = start + 100 + m.start()
+                    break
+            raw = clean[start:min(end, start + max_chars)]
+            if len(raw.split()) >= 50:
+                return raw
 
+    # Pass 2: largest candidate by word count
     best_text = ""
     best_word_count = 0
 
     for start in candidates:
-        end = len(text)
+        end = len(clean)
         for pat in end_patterns:
-            m = re.search(pat, text_lower[start + 100:])
+            m = re.search(pat, clean_lower[start + 100:])
             if m:
                 end = start + 100 + m.start()
                 break
 
-        raw = _clean(text[start:min(end, start + max_chars)])
+        raw = clean[start:min(end, start + max_chars)]
         wc = len(raw.split())
         if wc > best_word_count:
             best_word_count = wc
