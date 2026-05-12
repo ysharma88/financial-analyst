@@ -2533,12 +2533,24 @@ def render_stock_detail(ticker: str, data: dict):
         inst_risk = data.get("inst_risk")
         st.markdown("##### Institutional Risk Signals")
         if inst_risk:
+            gex = getattr(inst_risk, "gex", None)
+            sm = getattr(inst_risk, "smart_money", None)
+            credit = getattr(inst_risk, "credit", None)
             ir_cols = st.columns(3)
-            ir_cols[0].metric("GEX Signal", getattr(inst_risk, "gex_signal", "N/A"))
-            ir_cols[1].metric("Smart Money", getattr(inst_risk, "smart_money_signal", "N/A"))
-            ir_cols[2].metric("Credit Proxy", getattr(inst_risk, "credit_proxy_signal", "N/A"))
-            if getattr(inst_risk, "summary", None):
-                st.caption(inst_risk.summary)
+            # GEX: above_flip True = stable, False = vol-amplifying
+            gex_label = ("Stable" if gex.above_flip else "Vol-Amplifying") if gex and gex.above_flip is not None else "N/A"
+            ir_cols[0].metric("GEX Regime", gex_label)
+            # Smart money: rec_trend
+            sm_trend = getattr(sm, "rec_trend", None) if sm else None
+            sm_pressure = getattr(sm, "net_buying_pressure", None) if sm else None
+            ir_cols[1].metric("Analyst Trend", sm_trend or "N/A",
+                              delta=f"{sm_pressure:+.1%}" if sm_pressure is not None else None)
+            # Credit proxy: CDS proxy bps
+            cds = getattr(credit, "cds_proxy_bps", None) if credit else None
+            ir_cols[2].metric("CDS Proxy", f"{cds:.0f}bps" if cds is not None else "N/A")
+            pos_summary = getattr(inst_risk, "position_summary", None)
+            if pos_summary:
+                st.caption(pos_summary)
         else:
             st.info("Institutional risk data unavailable.")
 
@@ -2546,21 +2558,36 @@ def render_stock_detail(ticker: str, data: dict):
         if forensic and not getattr(forensic, "error", None):
             st.divider()
             st.markdown("##### Forensic NLP (EDGAR)")
-            f1, f2 = st.columns(2)
-            f1.metric("Deception Score", f"{getattr(forensic, 'deception_score', 0):.3f}")
-            f2.metric("NLP Signal", getattr(forensic, "signal", "N/A"))
-            if getattr(forensic, "summary", None):
-                st.caption(forensic.summary)
+            verdict = getattr(forensic, "verdict", None)
+            if verdict:
+                f1, f2 = st.columns(2)
+                f1.metric("Forensic Verdict", getattr(verdict, "verdict", "N/A"))
+                score = getattr(verdict, "score", None)
+                f2.metric("Concern Score", f"{score:.0f}/100" if score is not None else "N/A")
+                summary = getattr(verdict, "summary", None)
+                if summary:
+                    st.caption(summary)
+                flags = getattr(verdict, "flags", []) or []
+                for flag in flags[:3]:
+                    st.caption(f"⚠️ {flag}")
+            ai = getattr(forensic, "ai_analysis", None)
+            if ai:
+                with st.expander("AI Narrative Analysis"):
+                    st.markdown(ai)
 
         alt_data = data.get("alt_data")
         if alt_data:
             st.divider()
             st.markdown("##### Alternative Data")
             a1, a2 = st.columns(2)
-            a1.metric("Alt Data Signal", getattr(alt_data, "signal", "N/A"))
-            a2.metric("Alt Data Score", f"{getattr(alt_data, 'score', 0):.3f}")
-            if getattr(alt_data, "summary", None):
-                st.caption(alt_data.summary)
+            a1.metric("Overall Signal", getattr(alt_data, "overall_signal", "N/A"))
+            sig_count = getattr(alt_data, "signal_count", None)
+            a2.metric("Bullish Layers", str(sig_count) if sig_count is not None else "N/A")
+            # Show sentiment sub-signal if available
+            sentiment = getattr(alt_data, "sentiment", None)
+            if sentiment:
+                st.caption(f"News sentiment: {getattr(sentiment, 'signal', 'N/A')}  "
+                           f"(score {getattr(sentiment, 'composite_score', 0):+.2f})")
 
         cal = data.get("event_calendar", {})
         if cal:
