@@ -1112,10 +1112,11 @@ def run_single_analysis(ticker: str, period: str, f_weight: int):
         income_stmt=fetcher.get_income_statement(),
     )
 
-    alt_data_bundle = _alt_data.cached_analyze(
+    _alt_bundle = _alt_data.cached_analyze(
         ticker=ticker,
         price=company_info.get("price", 0),
     )
+    alt_data_bundle = _alt_bundle.get("result") if isinstance(_alt_bundle, dict) else _alt_bundle
 
     # Forensic NLP — EDGAR MD&A + Loughran-McDonald + Claude deception analysis
     _qs_dict = {}
