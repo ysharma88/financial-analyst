@@ -2,6 +2,19 @@
 
 import streamlit as st
 import plotly.graph_objects as go
+
+# ── Auto-keyed plotly_chart wrapper ──────────────────────────────────────────
+# Streamlit requires unique keys when the same chart appears multiple times.
+# This wrapper auto-generates a key from a running counter so callers never
+# need to think about it. Replace st.plotly_chart → _plotly_chart everywhere.
+_plotly_chart_counter = [0]
+
+def _plotly_chart(fig, **kwargs):
+    _plotly_chart_counter[0] += 1
+    kwargs.setdefault("use_container_width", True)
+    kwargs.setdefault("key", f"_pc_{_plotly_chart_counter[0]}")
+    st.plotly_chart(fig, **kwargs)
+# ─────────────────────────────────────────────────────────────────────────────
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
@@ -213,7 +226,7 @@ with st.sidebar:
     }
     with st.expander("⚡ Quick Watchlists"):
         for wl_name, wl_tickers in WATCHLISTS.items():
-            if st.button(wl_name, key=f"wl_{wl_name}", use_container_width=True):
+            if st.button(wl_name, use_container_width=True):
                 st.session_state["_ticker_prefill"] = wl_tickers
 
     # ── Ticker input ──
@@ -242,7 +255,6 @@ with st.sidebar:
 
     ticker_input = st.text_area(
         "Tickers",
-        key="ticker_input",
         height=68,
         placeholder="AAPL, MSFT, GOOGL ...",
         help="Comma-separated. Max 5 at a time to avoid rate limits.",
@@ -251,7 +263,7 @@ with st.sidebar:
 
     # Watchlist tracker (compact)
     with st.expander("📌 Saved Watchlist"):
-        tracker_symbol = st.text_input("Add ticker", value="", placeholder="TSLA", key="tracker_symbol_input", label_visibility="collapsed")
+        tracker_symbol = st.text_input("Add ticker", value="", placeholder="TSLA", label_visibility="collapsed")
         tc1, tc2, tc3 = st.columns(3)
         with tc1:
             if st.button("Add", use_container_width=True):
@@ -296,7 +308,6 @@ with st.sidebar:
         "Execution",
         strategy_options,
         index=0,
-        key="execution_strategy_ui",
         help="Order execution algorithm",
     )
     strategy_blurb = {
@@ -358,14 +369,14 @@ with st.sidebar:
 
         a1, a2 = st.columns(2)
         poll_seconds_ui = a1.number_input("Poll (s)", min_value=10, max_value=3600,
-            value=int(st.session_state["alert_settings"].get("poll_seconds", 300)), step=10, key="alert_poll_seconds_ui")
+            value=int(st.session_state["alert_settings"].get("poll_seconds", 300)), step=10)
         price_jump_ui = a2.number_input("Price jump %", min_value=0.1, max_value=20.0,
-            value=float(st.session_state["alert_settings"].get("price_jump_threshold_pct", 1.2)), step=0.1, key="alert_price_jump_ui")
+            value=float(st.session_state["alert_settings"].get("price_jump_threshold_pct", 1.2)), step=0.1)
         a3, a4 = st.columns(2)
         atr_spike_ui = a3.number_input("ATR spike %", min_value=1.0, max_value=200.0,
-            value=float(st.session_state["alert_settings"].get("atr_spike_threshold_pct", 20.0)), step=1.0, key="alert_atr_spike_ui")
+            value=float(st.session_state["alert_settings"].get("atr_spike_threshold_pct", 20.0)), step=1.0)
         momentum_shift_ui = a4.number_input("Momentum pts", min_value=0.1, max_value=50.0,
-            value=float(st.session_state["alert_settings"].get("momentum_spike_abs_pct", 2.5)), step=0.1, key="alert_momentum_shift_ui")
+            value=float(st.session_state["alert_settings"].get("momentum_spike_abs_pct", 2.5)), step=0.1)
 
         with st.expander("Advanced Fundamental Thresholds"):
             f1, f2 = st.columns(2)
@@ -445,9 +456,8 @@ with st.sidebar:
             st.session_state["telegram_credentials"] = creds
 
         bot_token_ui = st.text_input("Bot Token", value=st.session_state["telegram_credentials"].get("bot_token", ""),
-            type="password", key="telegram_bot_token_ui", help="Token from @BotFather")
-        chat_id_ui = st.text_input("Chat ID", value=st.session_state["telegram_credentials"].get("chat_id", ""),
-            key="telegram_chat_id_ui")
+            type="password", help="Token from @BotFather")
+        chat_id_ui = st.text_input("Chat ID", value=st.session_state["telegram_credentials"].get("chat_id", ""))
         if st.button("Save Telegram", use_container_width=True):
             os.makedirs(config_dir, exist_ok=True)
             creds = {"bot_token": bot_token_ui.strip(), "chat_id": chat_id_ui.strip()}
@@ -457,7 +467,7 @@ with st.sidebar:
             except Exception: pass
             st.session_state["telegram_credentials"] = creds
             st.success("Saved.")
-        test_message_ui = st.text_input("Test message", value="Test alert", key="telegram_test_message_ui")
+        test_message_ui = st.text_input("Test message", value="Test alert")
         if st.button("Send Test", use_container_width=True):
             token_for_test = bot_token_ui.strip() or st.session_state["telegram_credentials"].get("bot_token", "")
             chat_for_test  = chat_id_ui.strip()   or st.session_state["telegram_credentials"].get("chat_id", "")
@@ -485,9 +495,8 @@ with st.sidebar:
             st.session_state["discord_proc"] = None
 
         discord_token_ui = st.text_input("Bot Token", value=st.session_state["discord_credentials"].get("bot_token", ""),
-            type="password", key="discord_bot_token_ui")
-        discord_channel_ui = st.text_input("Channel ID (optional)", value=st.session_state["discord_credentials"].get("channel_id", ""),
-            key="discord_channel_id_ui")
+            type="password")
+        discord_channel_ui = st.text_input("Channel ID (optional)", value=st.session_state["discord_credentials"].get("channel_id", ""))
         if st.button("Save Discord", use_container_width=True):
             os.makedirs(config_dir, exist_ok=True)
             _dc = {"bot_token": discord_token_ui.strip(), "channel_id": discord_channel_ui.strip()}
@@ -2072,11 +2081,11 @@ def render_stock_detail(ticker: str, data: dict):
         st.divider()
         g1, g2, g3 = st.columns(3)
         with g1:
-            st.plotly_chart(create_gauge(fund_result.overall_score, "Fundamental"), use_container_width=True)
+            _plotly_chart(create_gauge(fund_result.overall_score, "Fundamental"), use_container_width=True)
         with g2:
-            st.plotly_chart(create_gauge(tech_result.overall_score, "Technical"), use_container_width=True)
+            _plotly_chart(create_gauge(tech_result.overall_score, "Technical"), use_container_width=True)
         with g3:
-            st.plotly_chart(create_gauge(verdict.composite_score, "Multi-Factor"), use_container_width=True)
+            _plotly_chart(create_gauge(verdict.composite_score, "Multi-Factor"), use_container_width=True)
 
         # Show any module errors so they're not silently hidden
         module_errors = data.get("_module_errors", {})
@@ -2159,7 +2168,7 @@ def render_stock_detail(ticker: str, data: dict):
                     ni_dates = sorted(ni_series.keys())
                     trend_fig.add_trace(go.Bar(x=ni_dates, y=[ni_series[d]/1e9 for d in ni_dates], name="Net Income ($B)", marker_color="#66BB6A"))
                 trend_fig.update_layout(template="plotly_dark", height=280, barmode="group", margin=dict(l=10, r=10, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", yaxis_title="$B")
-                st.plotly_chart(trend_fig, use_container_width=True)
+                _plotly_chart(trend_fig, use_container_width=True)
 
         st.divider()
         st.markdown("##### Governance & Red Flags")
@@ -2261,7 +2270,7 @@ def render_stock_detail(ticker: str, data: dict):
                 z_clean = [[v if v is not None else 0 for v in row] for row in z_vals]
                 sen_fig = go.Figure(go.Heatmap(z=z_clean, x=[f"Growth {g:+.1f}%" for g in grow_ds], y=[f"WACC {w:+.1f}%" for w in wacc_ds], colorscale="RdYlGn", text=[[f"${v:.0f}" if v else "N/A" for v in row] for row in z_clean], texttemplate="%{text}", showscale=True))
                 sen_fig.update_layout(template="plotly_dark", height=280, margin=dict(l=10, r=10, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", title=f"Current Price: ${price_now:.2f}" if price_now else "")
-                st.plotly_chart(sen_fig, use_container_width=True)
+                _plotly_chart(sen_fig, use_container_width=True)
         elif dcf and getattr(dcf, "error", None):
             st.info(f"DCF not computed: {dcf.error}")
         else:
@@ -2421,7 +2430,6 @@ def render_stock_detail(ticker: str, data: dict):
                 sel_multiple_lbl = st.selectbox(
                     "Visualize multiple",
                     [lbl for _, lbl in multiples_choices],
-                    key=f"peer_bar_multiple_{ticker}",
                 )
                 sel_multiple_key = next((k for k, lbl in multiples_choices if lbl == sel_multiple_lbl), None)
                 if sel_multiple_key:
@@ -2460,7 +2468,7 @@ def render_stock_detail(ticker: str, data: dict):
                             plot_bgcolor="rgba(0,0,0,0)",
                             showlegend=False,
                         )
-                        st.plotly_chart(bar_fig, use_container_width=True)
+                        _plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("Peer comparison data unavailable.")
 
@@ -2470,7 +2478,7 @@ def render_stock_detail(ticker: str, data: dict):
             st.divider()
             fig_pt = create_price_target_chart(current_price, analyst_targets)
             if fig_pt:
-                st.plotly_chart(fig_pt, use_container_width=True)
+                _plotly_chart(fig_pt, use_container_width=True)
             at_cols = st.columns(4)
             at_cols[0].metric("Analyst Low", f"${analyst_targets.get('low',0):.2f}" if analyst_targets.get('low') else "N/A")
             at_cols[1].metric("Analyst Mean", f"${analyst_targets.get('mean',0):.2f}" if analyst_targets.get('mean') else "N/A")
@@ -2480,8 +2488,8 @@ def render_stock_detail(ticker: str, data: dict):
     # ── TAB 4: TIMING ──
     with tab_timing:
         sr_levels = getattr(tech_result, 'support_resistance', [])
-        st.plotly_chart(create_price_chart(chart_df, ticker, sr_levels=sr_levels), use_container_width=True)
-        st.plotly_chart(create_volume_chart(chart_df), use_container_width=True)
+        _plotly_chart(create_price_chart(chart_df, ticker, sr_levels=sr_levels), use_container_width=True)
+        _plotly_chart(create_volume_chart(chart_df), use_container_width=True)
 
         if sr_levels:
             st.markdown("##### Support & Resistance Levels")
@@ -2794,7 +2802,7 @@ def render_stock_detail(ticker: str, data: dict):
                                                    title="IV Skew by Strike",
                                                    xaxis_title="Strike", yaxis_title="IV %",
                                                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                            st.plotly_chart(skew_fig, use_container_width=True)
+                            _plotly_chart(skew_fig, use_container_width=True)
                     except Exception:
                         pass
         else:
@@ -2868,7 +2876,7 @@ def render_stock_detail(ticker: str, data: dict):
                                                   title="GEX Walls & Trapdoors ($M)",
                                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                                   showlegend=False)
-                            st.plotly_chart(gex_bar, use_container_width=True)
+                            _plotly_chart(gex_bar, use_container_width=True)
 
             with ir_sm_col:
                 st.markdown("**Smart Money (13F)**")
@@ -3005,7 +3013,7 @@ def render_stock_detail(ticker: str, data: dict):
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     )
-                    st.plotly_chart(lm_fig, use_container_width=True)
+                    _plotly_chart(lm_fig, use_container_width=True)
 
                 # Flags list
                 if fr_verdict:
@@ -3191,7 +3199,7 @@ def render_stock_detail(ticker: str, data: dict):
             if _analyst_targets and _current_price_ai:
                 _fig_pt2 = create_price_target_chart(_current_price_ai, _analyst_targets)
                 if _fig_pt2:
-                    st.plotly_chart(_fig_pt2, use_container_width=True)
+                    _plotly_chart(_fig_pt2, use_container_width=True)
                 ai_m = st.columns(5)
                 ai_m[0].metric("Current Price", f"${_current_price_ai:.2f}")
                 ai_m[1].metric("Analyst Mean", f"${_analyst_targets.get('mean', 0):.2f}" if _analyst_targets.get('mean') else "N/A")
@@ -3204,7 +3212,7 @@ def render_stock_detail(ticker: str, data: dict):
                 st.markdown("**Analyst Recommendation Distribution**")
                 _rec_fig = create_recommendations_chart(_rec_summary)
                 if _rec_fig:
-                    st.plotly_chart(_rec_fig, use_container_width=True)
+                    _plotly_chart(_rec_fig, use_container_width=True)
                 # Latest period summary boxes
                 try:
                     _latest_rec = _rec_summary.iloc[0] if hasattr(_rec_summary, "iloc") else None
@@ -3599,13 +3607,13 @@ if analyze_btn:
     # ---- Comparison charts ----
     with tab_compare:
         st.markdown("#### Score Comparison")
-        st.plotly_chart(create_comparison_bar(stock_results), use_container_width=True)
+        _plotly_chart(create_comparison_bar(stock_results), use_container_width=True)
 
         st.markdown("#### Price Performance")
-        st.plotly_chart(create_normalized_price_chart(stock_results, period), use_container_width=True)
+        _plotly_chart(create_normalized_price_chart(stock_results, period), use_container_width=True)
 
         st.markdown("#### Category Radar Overlay")
-        st.plotly_chart(create_multi_radar(stock_results), use_container_width=True)
+        _plotly_chart(create_multi_radar(stock_results), use_container_width=True)
 
         st.markdown("#### Key Metrics Comparison")
         metric_charts = [
@@ -3620,7 +3628,7 @@ if analyze_btn:
         for i, (name, key, fmt) in enumerate(metric_charts):
             fig = create_metric_comparison_chart(stock_results, name, key, fmt)
             if fig:
-                chart_cols[i % 2].plotly_chart(fig, use_container_width=True)
+                _plotly_chart(fig, use_container_width=True)
 
     # ---- Deep Dive ----
     with tab_deep:
