@@ -2090,34 +2090,48 @@ def render_stock_detail(ticker: str, data: dict):
     with tab_business:
         st.markdown("##### Valuation Metrics")
         vc4 = st.columns(4)
-        vc4[0].metric("P/E (TTM)", f"{fund_data['pe_trailing']:.1f}" if fund_data.get('pe_trailing') else "N/A")
-        vc4[1].metric("Forward P/E", f"{fund_data['pe_forward']:.1f}" if fund_data.get('pe_forward') else "N/A")
-        vc4[2].metric("PEG Ratio", f"{fund_data['peg_ratio']:.2f}" if fund_data.get('peg_ratio') else "N/A")
-        vc4[3].metric("EV/EBITDA", f"{fund_data['ev_ebitda']:.1f}" if fund_data.get('ev_ebitda') else "N/A")
+        vc4[0].metric("P/E (TTM)", f"{fund_data['pe_trailing']:.1f}" if fund_data.get('pe_trailing') else "N/A",
+                      help="Price-to-Earnings (trailing 12 months). Lower = cheaper relative to current earnings. S&P 500 average ~20-25x.")
+        vc4[1].metric("Forward P/E", f"{fund_data['pe_forward']:.1f}" if fund_data.get('pe_forward') else "N/A",
+                      help="Price relative to next year's estimated earnings. Forward P/E < TTM P/E suggests earnings growth expected.")
+        vc4[2].metric("PEG Ratio", f"{fund_data['peg_ratio']:.2f}" if fund_data.get('peg_ratio') else "N/A",
+                      help="P/E divided by growth rate. <1 = potentially undervalued relative to growth. >2 = expensive growth.")
+        vc4[3].metric("EV/EBITDA", f"{fund_data['ev_ebitda']:.1f}" if fund_data.get('ev_ebitda') else "N/A",
+                      help="Enterprise Value / EBITDA. The most reliable acquisition metric. <10x = cheap, >20x = expensive.")
 
         vc4b = st.columns(4)
-        vc4b[0].metric("P/B Ratio", f"{fund_data['pb_ratio']:.2f}" if fund_data.get('pb_ratio') else "N/A")
-        vc4b[1].metric("P/S Ratio", f"{fund_data['ps_ratio']:.2f}" if fund_data.get('ps_ratio') else "N/A")
+        vc4b[0].metric("P/B Ratio", f"{fund_data['pb_ratio']:.2f}" if fund_data.get('pb_ratio') else "N/A",
+                       help="Price-to-Book. <1 = trading below asset value. Useful for banks/industrials, less so for asset-light tech.")
+        vc4b[1].metric("P/S Ratio", f"{fund_data['ps_ratio']:.2f}" if fund_data.get('ps_ratio') else "N/A",
+                       help="Price-to-Sales. Pre-profit companies often valued on revenue. <2x = cheap for tech, varies by sector.")
         vc4b[2].metric("EPS (TTM)", f"${fund_data['eps_trailing']:.2f}" if fund_data.get('eps_trailing') else "N/A")
         vc4b[3].metric("Book Value", f"${fund_data['book_value']:.2f}" if fund_data.get('book_value') else "N/A")
 
         st.divider()
         st.markdown("##### Profitability")
         pc5 = st.columns(5)
-        pc5[0].metric("ROE", format_pct(fund_data.get('roe'), mult100=True))
-        pc5[1].metric("ROA", format_pct(fund_data.get('roa'), mult100=True))
-        pc5[2].metric("Gross Margin", format_pct(fund_data.get('gross_margin'), mult100=True))
-        pc5[3].metric("Op. Margin", format_pct(fund_data.get('operating_margin'), mult100=True))
-        pc5[4].metric("Net Margin", format_pct(fund_data.get('net_margin'), mult100=True))
+        pc5[0].metric("ROE", format_pct(fund_data.get('roe'), mult100=True),
+                      help="Return on Equity. How much profit per dollar of shareholder equity. >15% = strong. Buffett target: >20%.")
+        pc5[1].metric("ROA", format_pct(fund_data.get('roa'), mult100=True),
+                      help="Return on Assets. Profit relative to total assets. >5% is good. Reflects asset efficiency.")
+        pc5[2].metric("Gross Margin", format_pct(fund_data.get('gross_margin'), mult100=True),
+                      help="Revenue minus cost of goods sold. Higher = more pricing power. Software: 60-80%, retail: 20-30%.")
+        pc5[3].metric("Op. Margin", format_pct(fund_data.get('operating_margin'), mult100=True),
+                      help="Operating income / revenue. Shows profitability before interest and taxes. Higher = more efficient.")
+        pc5[4].metric("Net Margin", format_pct(fund_data.get('net_margin'), mult100=True),
+                      help="Bottom-line profit as % of revenue. Wide margins = durable competitive advantage.")
 
         st.divider()
         st.markdown("##### Growth & Financial Health")
         gh = st.columns(4)
-        gh[0].metric("Revenue Growth", format_pct(fund_data.get('revenue_growth'), mult100=True))
+        gh[0].metric("Revenue Growth", format_pct(fund_data.get('revenue_growth'), mult100=True),
+                     help="YoY revenue increase. >20% = high growth, 10-20% = healthy, <5% = mature/slow.")
         gh[1].metric("Earnings Growth", format_pct(fund_data.get('earnings_growth'), mult100=True))
         de = fund_data.get('debt_to_equity')
-        gh[2].metric("Debt/Equity", f"{de:.1f}" if de else "N/A")
-        gh[3].metric("Free Cash Flow", format_large_number(fund_data.get('free_cashflow')))
+        gh[2].metric("Debt/Equity", f"{de:.1f}" if de else "N/A",
+                     help="Total debt / shareholder equity. <1 = conservative, >2 = leveraged. Context matters (utilities can be higher).")
+        gh[3].metric("Free Cash Flow", format_large_number(fund_data.get('free_cashflow')),
+                     help="Free Cash Flow = Operating cash minus capex. The 'real' earnings — harder to manipulate than net income.")
 
         trends = data.get("financial_trends", {})
         if trends:
@@ -2223,10 +2237,14 @@ def render_stock_detail(ticker: str, data: dict):
             iv_color = "#00C853" if mos_val > 0.10 else "#FFA726" if mos_val > -0.10 else "#FF1744"
             label_color = "#00C853" if "Under" in str(dcf.valuation_label) else "#FF1744" if "Over" in str(dcf.valuation_label) else "#FFA726"
             d1, d2, d3, d4 = st.columns(4)
-            d1.metric("Intrinsic Value", f"${dcf.intrinsic_value:.2f}")
+            d1.metric("Intrinsic Value", f"${dcf.intrinsic_value:.2f}",
+                      help="DCF estimate of fair value per share based on projected free cash flows discounted at WACC.")
             d2.metric("Current Price", f"${price_now:.2f}" if price_now else "N/A")
-            d3.metric("Upside / Downside", f"{upside:+.1%}" if dcf.upside_pct is not None else "N/A", delta=f"{upside:+.1%}" if dcf.upside_pct is not None else None)
-            d4.metric("Margin of Safety", f"{mos_val:.1%}" if dcf.margin_of_safety is not None else "N/A")
+            d3.metric("Upside / Downside", f"{upside:+.1%}" if dcf.upside_pct is not None else "N/A",
+                      delta=f"{upside:+.1%}" if dcf.upside_pct is not None else None,
+                      help="(Intrinsic Value - Current Price) / Current Price. Positive = potentially undervalued.")
+            d4.metric("Margin of Safety", f"{mos_val:.1%}" if dcf.margin_of_safety is not None else "N/A",
+                      help="Buffer between price and intrinsic value. Buffett's rule: buy only at >30% margin of safety.")
             st.markdown(
                 f"<div style='padding:0.6rem 1rem;background:{iv_color}18;border:1px solid {iv_color}66;border-radius:8px;margin:0.5rem 0'>"
                 f"<span style='color:{label_color};font-weight:700'>{dcf.valuation_label}</span>"
@@ -2314,6 +2332,135 @@ def render_stock_detail(ticker: str, data: dict):
             st.dataframe(peer_df, use_container_width=True, hide_index=True)
             if peer_comps_result.error:
                 st.caption(f"⚠️ {peer_comps_result.error}")
+
+            with st.expander("🔬 Full Peer Analysis — Percentile Ranks, Medians & Chart", expanded=False):
+                # Percentile rank cards
+                if peer_comps_result.percentile_ranks:
+                    st.markdown("**Percentile Ranks vs Peers** — *higher is better (valuation multiples adjusted: lower P/E = better rank)*")
+                    from peer_comps import MULTIPLES as _MULTIPLES
+                    rank_label_map = {k: lbl for k, lbl in _MULTIPLES}
+                    rank_cols = st.columns(min(len(peer_comps_result.percentile_ranks), 5))
+                    for ci2, (field_k, pct_val) in enumerate(peer_comps_result.percentile_ranks.items()):
+                        card_color = "#00C853" if pct_val >= 60 else "#FFA726" if pct_val >= 40 else "#FF1744"
+                        rank_cols[ci2 % len(rank_cols)].markdown(
+                            f"<div style='text-align:center;padding:0.7rem 0.4rem;background:{card_color}18;"
+                            f"border:1px solid {card_color}55;border-radius:8px;margin-bottom:0.3rem'>"
+                            f"<div style='color:{card_color};font-size:1.5rem;font-weight:800'>{pct_val:.0f}</div>"
+                            f"<div style='color:#888;font-size:0.7rem;text-transform:uppercase'>{rank_label_map.get(field_k, field_k)}</div>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                # Full multiples table with subject row highlighted
+                st.markdown("**Full Multiples Table**")
+                def _fmt_opt(v, fmt, mult=1, prefix="", suffix=""):
+                    if v is None:
+                        return "N/A"
+                    try:
+                        return f"{prefix}{v*mult:{fmt}}{suffix}"
+                    except Exception:
+                        return "N/A"
+
+                full_rows = []
+                for p in peer_comps_result.peers:
+                    full_rows.append({
+                        "Ticker": ("★ " if p.is_subject else "") + p.ticker,
+                        "Company": p.name,
+                        "Price": _fmt_opt(p.price, ".2f", prefix="$"),
+                        "P/E": _fmt_opt(p.pe_trailing, ".1f"),
+                        "Fwd P/E": _fmt_opt(p.pe_forward, ".1f"),
+                        "EV/EBITDA": _fmt_opt(p.ev_ebitda, ".1f"),
+                        "P/S": _fmt_opt(p.ps_ratio, ".2f"),
+                        "P/B": _fmt_opt(p.pb_ratio, ".2f"),
+                        "PEG": _fmt_opt(p.peg_ratio, ".2f"),
+                        "ROE": _fmt_opt(p.roe, ".1f", mult=100, suffix="%"),
+                        "Net Margin": _fmt_opt(p.net_margin, ".1f", mult=100, suffix="%"),
+                        "Rev Growth": _fmt_opt(p.revenue_growth, ".1f", mult=100, suffix="%"),
+                        "D/E": _fmt_opt(p.debt_to_equity, ".1f"),
+                        "_is_subject": p.is_subject,
+                    })
+                full_df = pd.DataFrame(full_rows)
+
+                def _highlight_subject(row):
+                    if row.get("_is_subject", False):
+                        return ["background-color: rgba(66,165,245,0.15); color: #90CAF9; font-weight:600"] * (len(row) - 1) + [""]
+                    return [""] * len(row)
+
+                display_full = full_df.drop(columns=["_is_subject"])
+                st.dataframe(
+                    display_full.style.apply(_highlight_subject, axis=1, subset=display_full.columns),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                # Sector medians vs subject
+                if peer_comps_result.medians:
+                    st.markdown("**Sector Medians vs Subject**")
+                    subj_peer = next((p for p in peer_comps_result.peers if p.is_subject), None)
+                    med_cols = st.columns(min(len(peer_comps_result.medians), 5))
+                    for mi, (fk, med_val) in enumerate(peer_comps_result.medians.items()):
+                        lbl = rank_label_map.get(fk, fk)
+                        subj_v = getattr(subj_peer, fk, None) if subj_peer else None
+                        delta_str = None
+                        if subj_v is not None:
+                            # percentage-based fields
+                            if fk in ("roe", "net_margin", "gross_margin", "revenue_growth"):
+                                delta_str = f"{(subj_v - med_val)*100:+.1f}pp vs median"
+                            else:
+                                delta_str = f"{subj_v - med_val:+.2f} vs median"
+                        med_cols[mi % len(med_cols)].metric(
+                            f"Median {lbl}",
+                            _fmt_opt(med_val, ".2f"),
+                            delta=delta_str,
+                        )
+
+                # Interactive bar chart
+                from peer_comps import MULTIPLES as _PEER_MULTIPLES
+                st.markdown("**Interactive Multiple Bar Chart**")
+                multiples_choices = [(k, lbl) for k, lbl in _PEER_MULTIPLES]
+                sel_multiple_lbl = st.selectbox(
+                    "Visualize multiple",
+                    [lbl for _, lbl in multiples_choices],
+                    key=f"peer_bar_multiple_{ticker}",
+                )
+                sel_multiple_key = next((k for k, lbl in multiples_choices if lbl == sel_multiple_lbl), None)
+                if sel_multiple_key:
+                    bar_tickers = []
+                    bar_vals = []
+                    bar_colors = []
+                    subject_val = None
+                    for p in peer_comps_result.peers:
+                        v = getattr(p, sel_multiple_key, None)
+                        if v is not None:
+                            bar_tickers.append(p.ticker)
+                            bar_vals.append(v)
+                            bar_colors.append("#42A5F5" if p.is_subject else "#667eea")
+                            if p.is_subject:
+                                subject_val = v
+                    if bar_vals:
+                        bar_fig = go.Figure()
+                        bar_fig.add_trace(go.Bar(
+                            x=bar_tickers, y=bar_vals,
+                            marker_color=bar_colors,
+                            text=[f"{v:.2f}" for v in bar_vals],
+                            textposition="auto",
+                        ))
+                        med_val_bar = peer_comps_result.medians.get(sel_multiple_key)
+                        if med_val_bar is not None:
+                            bar_fig.add_hline(
+                                y=med_val_bar, line_dash="dash", line_color="#FFA726",
+                                annotation_text=f"Sector Median: {med_val_bar:.2f}",
+                                annotation_position="top right",
+                            )
+                        bar_fig.update_layout(
+                            template="plotly_dark", height=320,
+                            margin=dict(l=10, r=10, t=40, b=10),
+                            title=f"{sel_multiple_lbl} vs Peers",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            showlegend=False,
+                        )
+                        st.plotly_chart(bar_fig, use_container_width=True)
         else:
             st.info("Peer comparison data unavailable.")
 
@@ -2372,6 +2519,34 @@ def render_stock_detail(ticker: str, data: dict):
             ind_cols = st.columns(4)
             for i, (k, v) in enumerate(ind.items()):
                 ind_cols[i % 4].metric(k.replace("_", " "), f"{v:,.2f}" if isinstance(v, float) else str(v))
+
+        _tech_signals = getattr(tech_result, "signals", None)
+        if _tech_signals:
+            with st.expander("📊 Full Technical Signal Breakdown", expanded=False):
+                for sig in _tech_signals:
+                    sig_name = getattr(sig, "name", str(sig))
+                    sig_cat = getattr(sig, "category", "")
+                    sig_val = getattr(sig, "value", None)
+                    sig_interp = getattr(sig, "interpretation", "")
+                    sig_score = getattr(sig, "score", 0) or 0
+                    sc = "#00C853" if sig_score > 0.1 else "#FF1744" if sig_score < -0.1 else "#FFD54F"
+                    bar_pct = (sig_score + 1) / 2 * 100
+                    val_str = f"{sig_val:.4f}" if isinstance(sig_val, float) else str(sig_val) if sig_val is not None else "N/A"
+                    st.markdown(
+                        f"<div style='padding:0.5rem 0.8rem;background:rgba(15,17,30,0.6);"
+                        f"border-left:3px solid {sc};border-radius:0 8px 8px 0;margin-bottom:0.35rem'>"
+                        f"<div style='display:flex;align-items:center;gap:0.5rem'>"
+                        f"<span style='color:{sc};font-weight:700;flex:1'>{sig_name}</span>"
+                        f"<span style='color:#666;font-size:0.72rem;text-transform:uppercase'>{sig_cat}</span>"
+                        f"<span style='color:#aaa;font-size:0.82rem;margin-left:0.5rem'>{val_str}</span>"
+                        f"<span style='color:{sc};font-weight:600;width:48px;text-align:right'>{sig_score:+.2f}</span>"
+                        f"</div>"
+                        f"<div style='color:#888;font-size:0.78rem;margin:0.2rem 0 0.3rem 0'>{sig_interp}</div>"
+                        f"<div style='background:rgba(255,255,255,0.06);height:4px;border-radius:2px'>"
+                        f"<div style='background:{sc};height:4px;border-radius:2px;width:{bar_pct:.0f}%'></div></div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
 
         st.divider()
         st.markdown("##### Enhanced Technical Analysis")
@@ -2469,12 +2644,16 @@ def render_stock_detail(ticker: str, data: dict):
             rm1, rm2, rm3, rm4 = st.columns(4)
             pos_sizes = getattr(rp, "position_sizes", []) or []
             first_pos = pos_sizes[0] if pos_sizes else None
-            rm1.metric("Suggested Shares", str(first_pos.shares) if first_pos else "N/A")
-            rm2.metric("Risk Amount", format_large_number(first_pos.risk_amount if first_pos else None))
+            rm1.metric("Suggested Shares", str(first_pos.shares) if first_pos else "N/A",
+                       help="Position size based on risking 1% of $100,000 account using the ATR stop-loss level.")
+            rm2.metric("Risk Amount", format_large_number(first_pos.risk_amount if first_pos else None),
+                       help="Dollar amount at risk if stop-loss is hit. Should not exceed 1-2% of total portfolio.")
             sharpe = getattr(rp, "sharpe_approx", None)
-            rm3.metric("Sharpe Ratio", f"{sharpe:.2f}" if sharpe is not None else "N/A")
+            rm3.metric("Sharpe Ratio", f"{sharpe:.2f}" if sharpe is not None else "N/A",
+                       help="Return per unit of risk. >1 = good, >2 = very good, <0 = underperforming risk-free rate.")
             max_dd = getattr(rp, "max_drawdown", None)
-            rm4.metric("Max Drawdown", f"{max_dd:.1%}" if max_dd is not None else "N/A")
+            rm4.metric("Max Drawdown", f"{max_dd:.1%}" if max_dd is not None else "N/A",
+                       help="Largest peak-to-trough decline. Measures downside risk and psychological pain of holding.")
 
             stop_levels = getattr(rp, "stop_losses", []) or []
             rr_scenarios = getattr(rp, "risk_reward", []) or []
@@ -2539,42 +2718,213 @@ def render_stock_detail(ticker: str, data: dict):
 
         st.divider()
         options_result = data.get("options_result")
+        opt = options_result
         st.markdown("##### Options Market Signals")
-        if options_result and not getattr(options_result, "error", None):
-            op1, op2, op3, op4 = st.columns(4)
-            op1.metric("Put/Call Ratio", f"{getattr(options_result, 'put_call_ratio', None) or getattr(options_result, 'put_call_oi_ratio', 'N/A'):.2f}" if (getattr(options_result, 'put_call_ratio', None) or getattr(options_result, 'put_call_oi_ratio', None)) is not None else "N/A")
-            op2.metric("IV Percentile", f"{getattr(options_result, 'iv_percentile', None) or getattr(options_result, 'iv_rank', 'N/A'):.1f}%" if (getattr(options_result, 'iv_percentile', None) or getattr(options_result, 'iv_rank', None)) is not None else "N/A")
-            op3.metric("Options Signal", getattr(options_result, "signal", "N/A"))
-            mp = getattr(options_result, "max_pain", None) or getattr(options_result, "max_pain_price", None)
-            op4.metric("Max Pain", f"${mp:.2f}" if mp else "N/A")
-            if getattr(options_result, "summary", None):
-                st.caption(options_result.summary)
+        if opt and not getattr(opt, "error", None):
+            # Signal banner
+            _opt_signal = getattr(opt, "signal", "Neutral")
+            _opt_expiry = getattr(opt, "nearest_expiry", "")
+            _opt_summary = getattr(opt, "summary", "")
+            _opt_sig_color = "#00C853" if "Bullish" in _opt_signal else "#FF1744" if "Bearish" in _opt_signal else "#FFA726" if "High IV" in _opt_signal else "#42A5F5"
+            st.markdown(
+                f"<div style='padding:0.7rem 1rem;background:{_opt_sig_color}18;border:1px solid {_opt_sig_color}55;"
+                f"border-radius:8px;margin-bottom:0.6rem'>"
+                f"<span style='color:{_opt_sig_color};font-weight:700;font-size:1rem'>{_opt_signal}</span>"
+                f"{'  ·  Expiry: ' + _opt_expiry if _opt_expiry else ''}"
+                f"{'  ·  ' + _opt_summary if _opt_summary else ''}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            # Row 1: IV metrics
+            _avg_iv = getattr(opt, "avg_iv", None)
+            _rv30 = getattr(opt, "realized_vol_30d", None)
+            _iv_prem = getattr(opt, "iv_premium", None)
+            _iv_rank = getattr(opt, "iv_rank", None)
+            _max_pain = getattr(opt, "max_pain_price", None)
+            op_r1 = st.columns(5)
+            op_r1[0].metric("ATM IV", f"{_avg_iv*100:.1f}%" if _avg_iv is not None else "N/A",
+                            help="Implied volatility of near-the-money options. Reflects market's expected price move. Compare to Realized Vol.")
+            op_r1[1].metric("30d Realized Vol", f"{_rv30*100:.1f}%" if _rv30 is not None else "N/A")
+            op_r1[2].metric("IV Premium", f"{_iv_prem*100:+.1f}pp" if _iv_prem is not None else "N/A",
+                            help="IV minus realized vol. Positive = options are expensive relative to actual moves — consider selling premium.")
+            op_r1[3].metric("IV Rank", f"{_iv_rank:.0f}" if _iv_rank is not None else "N/A")
+            op_r1[4].metric("Max Pain", f"${_max_pain:.2f}" if _max_pain else "N/A",
+                            help="Strike price where the most options contracts expire worthless. Price often gravitates here near expiry.")
+            # Row 2: Volume/OI metrics
+            _pc_oi = getattr(opt, "put_call_oi_ratio", None)
+            _pc_vol = getattr(opt, "put_call_vol_ratio", None)
+            _call_oi = getattr(opt, "total_call_oi", None)
+            _put_oi = getattr(opt, "total_put_oi", None)
+            op_r2 = st.columns(4)
+            op_r2[0].metric("Put/Call OI Ratio", f"{_pc_oi:.2f}" if _pc_oi is not None else "N/A",
+                            help=">1 = more put open interest (bearish hedge or speculation). <0.7 = call-heavy, bullish sentiment.")
+            op_r2[1].metric("Put/Call Vol Ratio", f"{_pc_vol:.2f}" if _pc_vol is not None else "N/A")
+            op_r2[2].metric("Total Call OI", f"{_call_oi:,}" if _call_oi else "N/A")
+            op_r2[3].metric("Total Put OI", f"{_put_oi:,}" if _put_oi else "N/A")
+            # P/C contextual message
+            if _pc_oi is not None:
+                if _pc_oi > 1.3:
+                    st.warning(f"Put/Call OI Ratio {_pc_oi:.2f} — elevated put activity suggests bearish hedging or speculation.")
+                elif _pc_oi < 0.7:
+                    st.success(f"Put/Call OI Ratio {_pc_oi:.2f} — call-heavy positioning suggests bullish sentiment.")
+                else:
+                    st.info(f"Put/Call OI Ratio {_pc_oi:.2f} — balanced positioning, no strong directional bias.")
+
+            with st.expander("Options Chain & IV Skew", expanded=False):
+                chain_summary = getattr(opt, "chain_summary", []) or []
+                if chain_summary:
+                    chain_df = pd.DataFrame(chain_summary)
+                    st.dataframe(chain_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Options chain data unavailable.")
+                # IV skew chart: ATM vs wings
+                if chain_summary:
+                    try:
+                        skew_strikes = [row.get("strike") for row in chain_summary if row.get("strike") is not None]
+                        skew_ivs = [row.get("avg_iv") or row.get("impliedVolatility") for row in chain_summary]
+                        skew_vals = [(s, iv) for s, iv in zip(skew_strikes, skew_ivs) if iv is not None]
+                        if skew_vals:
+                            skew_x, skew_y = zip(*skew_vals)
+                            skew_fig = go.Figure()
+                            skew_fig.add_trace(go.Scatter(x=list(skew_x), y=[v * 100 for v in skew_y],
+                                                          mode="lines+markers", line=dict(color="#667eea", width=2),
+                                                          name="IV Skew"))
+                            skew_fig.update_layout(template="plotly_dark", height=260,
+                                                   margin=dict(l=10, r=10, t=30, b=10),
+                                                   title="IV Skew by Strike",
+                                                   xaxis_title="Strike", yaxis_title="IV %",
+                                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                            st.plotly_chart(skew_fig, use_container_width=True)
+                    except Exception:
+                        pass
         else:
-            err = getattr(options_result, "error", None) if options_result else None
+            err = getattr(opt, "error", None) if opt else None
             st.info(f"Options data unavailable.{f' ({err})' if err else ''}")
 
         st.divider()
         inst_risk = data.get("inst_risk")
         st.markdown("##### Institutional Risk Signals")
         if inst_risk:
-            gex = getattr(inst_risk, "gex", None)
-            sm = getattr(inst_risk, "smart_money", None)
-            credit = getattr(inst_risk, "credit", None)
-            ir_cols = st.columns(3)
-            # GEX: above_flip True = stable, False = vol-amplifying
-            gex_label = ("Stable" if gex.above_flip else "Vol-Amplifying") if gex and gex.above_flip is not None else "N/A"
-            ir_cols[0].metric("GEX Regime", gex_label)
-            # Smart money: rec_trend
-            sm_trend = getattr(sm, "rec_trend", None) if sm else None
-            sm_pressure = getattr(sm, "net_buying_pressure", None) if sm else None
-            ir_cols[1].metric("Analyst Trend", sm_trend or "N/A",
-                              delta=f"{sm_pressure:+.1%}" if sm_pressure is not None else None)
-            # Credit proxy: CDS proxy bps
-            cds = getattr(credit, "cds_proxy_bps", None) if credit else None
-            ir_cols[2].metric("CDS Proxy", f"{cds:.0f}bps" if cds is not None else "N/A")
-            pos_summary = getattr(inst_risk, "position_summary", None)
+            ir = inst_risk
+            gex = getattr(ir, "gex", None)
+            sm_ir = getattr(ir, "smart_money", None)
+            credit = getattr(ir, "credit", None)
+
+            # Position summary banner
+            pos_summary = getattr(ir, "position_summary", None)
             if pos_summary:
-                st.caption(pos_summary)
+                st.markdown(
+                    f"<div style='padding:0.6rem 1rem;background:rgba(66,165,245,0.08);"
+                    f"border-left:3px solid #42A5F5;border-radius:0 8px 8px 0;color:#b0bec5;font-size:0.85rem'>"
+                    f"{pos_summary}</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # Two columns: GEX | Smart Money
+            ir_gex_col, ir_sm_col = st.columns(2)
+
+            with ir_gex_col:
+                st.markdown("**GEX (Dealer Gamma)**")
+                if gex:
+                    above = gex.above_flip
+                    regime_label = "STABLE" if above else "VOLATILE" if above is not None else "N/A"
+                    regime_color = "#00C853" if above else "#FF1744" if above is not None else "#888"
+                    regime_desc = "Price above gamma flip — dealers hedge by buying dips (stabilizing)." if above else "Price below gamma flip — dealers amplify moves (vol-amplifying)." if above is not None else ""
+                    st.markdown(
+                        f"<div style='padding:0.5rem 0.8rem;background:{regime_color}18;"
+                        f"border:1px solid {regime_color}44;border-radius:8px;margin-bottom:0.5rem'>"
+                        f"<span style='color:{regime_color};font-weight:700'>{regime_label}</span>"
+                        f"  <span style='color:#888;font-size:0.78rem'>{regime_desc}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    gex_m1, gex_m2, gex_m3 = st.columns(3)
+                    gex_m1.metric("Total GEX ($M)", f"${gex.total_gex/1e6:.1f}M" if gex.total_gex else "N/A")
+                    gex_m2.metric("Gamma Flip", f"${gex.gamma_flip:.2f}" if gex.gamma_flip else "N/A")
+                    curr_px = company_info.get("price")
+                    dist_to_flip = None
+                    if curr_px and gex.gamma_flip:
+                        dist_to_flip = (gex.gamma_flip - curr_px) / curr_px * 100
+                    gex_m3.metric("Distance to Flip", f"{dist_to_flip:+.1f}%" if dist_to_flip is not None else "N/A")
+
+                    top_walls = getattr(gex, "top_walls", []) or []
+                    top_traps = getattr(gex, "top_trapdoors", []) or []
+                    if top_walls or top_traps:
+                        wall_names, wall_vals, wall_colors = [], [], []
+                        for wl in top_walls[:4]:
+                            wall_names.append(f"Wall ${getattr(wl, 'strike', '?')}")
+                            wall_vals.append(getattr(wl, "gex_notional", 0) / 1e6)
+                            wall_colors.append("#00C853")
+                        for tr in top_traps[:4]:
+                            wall_names.append(f"Trap ${getattr(tr, 'strike', '?')}")
+                            wall_vals.append(getattr(tr, "gex_notional", 0) / 1e6)
+                            wall_colors.append("#FF1744")
+                        if wall_vals:
+                            gex_bar = go.Figure()
+                            gex_bar.add_trace(go.Bar(x=wall_names, y=wall_vals, marker_color=wall_colors,
+                                                     text=[f"${v:.1f}M" for v in wall_vals], textposition="auto"))
+                            gex_bar.update_layout(template="plotly_dark", height=220,
+                                                  margin=dict(l=5, r=5, t=30, b=5),
+                                                  title="GEX Walls & Trapdoors ($M)",
+                                                  paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                                  showlegend=False)
+                            st.plotly_chart(gex_bar, use_container_width=True)
+
+            with ir_sm_col:
+                st.markdown("**Smart Money (13F)**")
+                if sm_ir:
+                    sm_m1, sm_m2, sm_m3 = st.columns(3)
+                    conc_top5 = getattr(sm_ir, "concentration_top5", None)
+                    sm_m1.metric("Top-5 Conc.", f"{conc_top5:.1%}" if conc_top5 is not None else "N/A")
+                    net_bp = getattr(sm_ir, "net_buying_pressure", None)
+                    sm_m2.metric("Net Buying QoQ", f"{net_bp:+.1%}" if net_bp is not None else "N/A")
+                    hc = getattr(sm_ir, "high_conviction_count", None)
+                    sm_m3.metric("High Conv. Holders", str(hc) if hc is not None else "N/A")
+                    rec_tr = getattr(sm_ir, "rec_trend", "N/A")
+                    tr_color = "#00C853" if rec_tr == "Improving" else "#FF1744" if rec_tr == "Deteriorating" else "#FFD54F"
+                    st.markdown(
+                        f"<div style='padding:0.4rem 0.7rem;background:{tr_color}18;"
+                        f"border:1px solid {tr_color}44;border-radius:6px;margin:0.3rem 0'>"
+                        f"<span style='color:{tr_color};font-weight:700'>Analyst Trend: {rec_tr}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    holders_list = getattr(sm_ir, "holders", []) or []
+                    if holders_list:
+                        st.markdown("**Top Institutional Holders**")
+                        for h in holders_list[:8]:
+                            h_name = getattr(h, "name", "Unknown")
+                            h_pct = getattr(h, "pct_held", 0) or 0
+                            h_chg = getattr(h, "pct_change", None)
+                            chg_str = f"  {h_chg:+.1%} QoQ" if h_chg is not None else ""
+                            chg_color = "#00C853" if (h_chg or 0) > 0 else "#FF1744" if (h_chg or 0) < 0 else "#888"
+                            st.markdown(
+                                f"<div style='display:flex;justify-content:space-between;padding:0.2rem 0.5rem;"
+                                f"border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem'>"
+                                f"<span style='color:#ccc'>{h_name}</span>"
+                                f"<span style='color:#888'>{h_pct:.2%}"
+                                f"<span style='color:{chg_color}'>{chg_str}</span></span>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+
+            # Credit proxy (full width)
+            if credit:
+                st.markdown("**Credit Risk Proxy**")
+                cds_bps = getattr(credit, "cds_proxy_bps", None)
+                cred_rating = getattr(credit, "credit_rating_proxy", "N/A")
+                int_cov = getattr(credit, "interest_coverage", None)
+                d_ebitda = getattr(credit, "debt_to_ebitda", None)
+                cs01 = getattr(credit, "cs01_proxy", None)
+                dv01 = getattr(credit, "dv01_proxy", None)
+                cr_cols = st.columns(5)
+                cr_cols[0].metric("CDS Proxy", f"{cds_bps:.0f}bps" if cds_bps is not None else "N/A",
+                                  help="Synthetic credit default swap spread in basis points. Higher = market perceives more default risk.")
+                cr_cols[1].metric("Credit Rating Proxy", cred_rating)
+                cr_cols[2].metric("Interest Coverage", f"{int_cov:.1f}x" if int_cov is not None else "N/A")
+                cr_cols[3].metric("Debt/EBITDA", f"{d_ebitda:.1f}x" if d_ebitda is not None else "N/A")
+                cr_cols[4].metric("CS01 / DV01",
+                                  f"${cs01/1e3:.0f}K / ${dv01/1e3:.0f}K" if cs01 and dv01 else "N/A")
         else:
             st.info("Institutional risk data unavailable.")
 
@@ -2582,22 +2932,102 @@ def render_stock_detail(ticker: str, data: dict):
         if forensic and not getattr(forensic, "error", None):
             st.divider()
             st.markdown("##### Forensic NLP (EDGAR)")
-            verdict = getattr(forensic, "verdict", None)
-            if verdict:
+            fr_verdict = getattr(forensic, "verdict", None)
+            if fr_verdict:
+                _fv_str = getattr(fr_verdict, "verdict", "N/A")
+                _fv_score = getattr(fr_verdict, "score", None)
+                _fv_color = {"Clean": "#1a7a4a", "Watch": "#b8860b", "Red Flag": "#c0704a", "Critical": "#c0392b"}.get(_fv_str, "#888")
                 f1, f2 = st.columns(2)
-                f1.metric("Forensic Verdict", getattr(verdict, "verdict", "N/A"))
-                score = getattr(verdict, "score", None)
-                f2.metric("Concern Score", f"{score:.0f}/100" if score is not None else "N/A")
-                summary = getattr(verdict, "summary", None)
-                if summary:
-                    st.caption(summary)
-                flags = getattr(verdict, "flags", []) or []
-                for flag in flags[:3]:
-                    st.caption(f"⚠️ {flag}")
-            ai = getattr(forensic, "ai_analysis", None)
-            if ai:
-                with st.expander("AI Narrative Analysis"):
-                    st.markdown(ai)
+                f1.metric("Forensic Verdict", _fv_str)
+                f2.metric("Concern Score", f"{_fv_score:.0f}/100" if _fv_score is not None else "N/A")
+                _fv_summary = getattr(fr_verdict, "summary", None)
+                if _fv_summary:
+                    st.caption(_fv_summary)
+                _fv_flags = getattr(fr_verdict, "flags", []) or []
+                for _ff in _fv_flags[:3]:
+                    st.caption(f"⚠️ {_ff}")
+
+            with st.expander("🧬 Forensic NLP — EDGAR MD&A Analysis", expanded=False):
+                # Verdict banner
+                if fr_verdict:
+                    _fv_str = getattr(fr_verdict, "verdict", "N/A")
+                    _fv_score = getattr(fr_verdict, "score", None)
+                    _fv_color = {"Clean": "#1a7a4a", "Watch": "#b8860b", "Red Flag": "#c0704a", "Critical": "#c0392b"}.get(_fv_str, "#888")
+                    st.markdown(
+                        f"<div style='padding:0.8rem 1.2rem;background:{_fv_color}22;border:2px solid {_fv_color};"
+                        f"border-radius:10px;margin-bottom:0.8rem'>"
+                        f"<span style='color:{_fv_color};font-size:1.3rem;font-weight:800'>{_fv_str}</span>"
+                        f"{'  ·  Score: ' + str(_fv_score) + '/100' if _fv_score is not None else ''}"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                # Filing metadata
+                fr_filing = getattr(forensic, "filing", None)
+                if fr_filing:
+                    fm1, fm2, fm3, fm4 = st.columns(4)
+                    fm1.metric("Form Type", getattr(fr_filing, "form_type", "N/A"))
+                    fm2.metric("Period", getattr(fr_filing, "period", "N/A"))
+                    fm3.metric("Filed Date", getattr(fr_filing, "filed_date", "N/A"))
+                    fm4.metric("Word Count", f"{getattr(fr_filing, 'word_count', 0):,}")
+
+                # LM Linguistic Scores chart
+                lm = getattr(fr_verdict, "lm_scores", None) if fr_verdict else None
+                if lm:
+                    st.markdown("**Loughran-McDonald Linguistic Scores**")
+                    lm_metrics = [
+                        ("Uncertainty", getattr(lm, "uncertainty_ratio", 0) * 100, 2.8),
+                        ("Litigious", getattr(lm, "litigious_ratio", 0) * 100, 1.2),
+                        ("Negative", getattr(lm, "negative_ratio", 0) * 100, 1.8),
+                        ("Positive", getattr(lm, "positive_ratio", 0) * 100, 1.5),
+                        ("Hedging", getattr(lm, "hedging_ratio", 0) * 100, 2.5),
+                    ]
+                    lm_fig = go.Figure()
+                    lm_fig.add_trace(go.Bar(
+                        x=[m[0] for m in lm_metrics],
+                        y=[m[1] for m in lm_metrics],
+                        name="Filing",
+                        marker_color=["#FF8A65" if m[1] > m[2] else "#42A5F5" for m in lm_metrics],
+                        text=[f"{m[1]:.2f}%" for m in lm_metrics],
+                        textposition="auto",
+                    ))
+                    lm_fig.add_trace(go.Scatter(
+                        x=[m[0] for m in lm_metrics],
+                        y=[m[2] for m in lm_metrics],
+                        mode="markers",
+                        marker=dict(color="#FFD54F", size=10, symbol="diamond"),
+                        name="Benchmark",
+                    ))
+                    lm_fig.update_layout(
+                        template="plotly_dark", height=260,
+                        margin=dict(l=10, r=10, t=30, b=10),
+                        title="LM Scores vs Benchmarks",
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    )
+                    st.plotly_chart(lm_fig, use_container_width=True)
+
+                # Flags list
+                if fr_verdict:
+                    _all_flags = getattr(fr_verdict, "flags", []) or []
+                    if _all_flags:
+                        st.markdown("**Detected Flags**")
+                        for _fl in _all_flags:
+                            st.markdown(f"<div style='padding:0.3rem 0.6rem;background:rgba(255,23,68,0.08);"
+                                        f"border-left:3px solid #FF5722;border-radius:0 6px 6px 0;"
+                                        f"margin-bottom:0.2rem;color:#ffab91;font-size:0.83rem'>⚠️ {_fl}</div>",
+                                        unsafe_allow_html=True)
+                    _fv_sum = getattr(fr_verdict, "summary", None)
+                    if _fv_sum:
+                        st.markdown("**Summary**")
+                        st.markdown(f"<div style='padding:0.6rem 1rem;background:rgba(255,255,255,0.04);"
+                                    f"border-radius:8px;color:#ccc;font-size:0.88rem;line-height:1.6'>{_fv_sum}</div>",
+                                    unsafe_allow_html=True)
+
+                ai_analysis = getattr(forensic, "ai_analysis", None)
+                if ai_analysis:
+                    with st.expander("AI Narrative Analysis", expanded=False):
+                        st.markdown(ai_analysis)
 
         alt_data = data.get("alt_data")
         if alt_data:
@@ -2608,10 +3038,222 @@ def render_stock_detail(ticker: str, data: dict):
             sig_count = getattr(alt_data, "signal_count", None)
             a2.metric("Bullish Layers", str(sig_count) if sig_count is not None else "N/A")
             # Show sentiment sub-signal if available
-            sentiment = getattr(alt_data, "sentiment", None)
-            if sentiment:
-                st.caption(f"News sentiment: {getattr(sentiment, 'signal', 'N/A')}  "
-                           f"(score {getattr(sentiment, 'composite_score', 0):+.2f})")
+            _alt_sent = getattr(alt_data, "sentiment", None)
+            if _alt_sent:
+                st.caption(f"News sentiment: {getattr(_alt_sent, 'signal', 'N/A')}  "
+                           f"(score {getattr(_alt_sent, 'composite_score', 0):+.2f})")
+
+            with st.expander("🔭 Alternative Data — 5 Layers", expanded=False):
+                # Overall signal banner
+                _ad_overall = getattr(alt_data, "overall_signal", "N/A")
+                _ad_oc = "#00C853" if "Bull" in _ad_overall else "#FF1744" if "Bear" in _ad_overall else "#FFD54F"
+                st.markdown(
+                    f"<div style='padding:0.6rem 1rem;background:{_ad_oc}18;border:1px solid {_ad_oc}55;"
+                    f"border-radius:8px;margin-bottom:0.7rem'>"
+                    f"<span style='color:{_ad_oc};font-weight:700;font-size:1rem'>{_ad_overall}</span>"
+                    f"  ·  Bullish layers: {sig_count if sig_count is not None else 'N/A'} / 5"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # Layer 1: News Sentiment
+                st.markdown("**Layer 1 — News Sentiment**")
+                sent_l1 = getattr(alt_data, "sentiment", None)
+                if sent_l1:
+                    _l1c = st.columns(3)
+                    _l1c[0].metric("Direction", getattr(sent_l1, "signal", "N/A"))
+                    _l1c[1].metric("Composite Score", f"{getattr(sent_l1, 'composite_score', 0):+.3f}")
+                    _l1c[2].metric("Articles", str(getattr(sent_l1, "article_count", "N/A")))
+                    _headlines = getattr(sent_l1, "top_headlines", []) or []
+                    if _headlines:
+                        with st.expander("Top Headlines", expanded=False):
+                            for h in _headlines:
+                                _ht = h.get("title", str(h)) if isinstance(h, dict) else str(h)
+                                _hs = h.get("score", 0) if isinstance(h, dict) else 0
+                                _hc = "#00C853" if _hs > 0.1 else "#FF1744" if _hs < -0.1 else "#888"
+                                st.markdown(
+                                    f"<div style='padding:0.3rem 0.6rem;border-left:3px solid {_hc};"
+                                    f"border-radius:0 6px 6px 0;margin-bottom:0.2rem;color:#b0bec5;font-size:0.82rem'>"
+                                    f"{_ht}</div>",
+                                    unsafe_allow_html=True,
+                                )
+                else:
+                    st.info("Sentiment data unavailable.")
+
+                # Layer 2: Insider Flow
+                st.markdown("**Layer 2 — Insider Flow**")
+                ins_l2 = getattr(alt_data, "insider_flow", None)
+                if ins_l2:
+                    _l2c = st.columns(4)
+                    _l2c[0].metric("Signal", getattr(ins_l2, "signal", "N/A"))
+                    _l2c[1].metric("Buy Count", str(getattr(ins_l2, "buy_count", 0)))
+                    _l2c[2].metric("Sell Count", str(getattr(ins_l2, "sell_count", 0)))
+                    _nv = getattr(ins_l2, "net_value_bought", None)
+                    _l2c[3].metric("Net Value Bought", format_large_number(_nv) if _nv is not None else "N/A")
+                    _recent_t = getattr(ins_l2, "recent_trades", []) or []
+                    if _recent_t:
+                        with st.expander("Recent Insider Trades", expanded=False):
+                            for t2 in _recent_t[:10]:
+                                t2_name = getattr(t2, "name", "?")
+                                t2_type = getattr(t2, "transaction_type", "?")
+                                t2_shares = getattr(t2, "shares", 0) or 0
+                                t2_val = getattr(t2, "value", None)
+                                t2_color = "#00C853" if "buy" in str(t2_type).lower() else "#FF1744"
+                                st.markdown(
+                                    f"<div style='display:flex;justify-content:space-between;padding:0.2rem 0.5rem;"
+                                    f"border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem'>"
+                                    f"<span style='color:#ccc'>{t2_name}</span>"
+                                    f"<span style='color:{t2_color}'>{t2_type}  {t2_shares:,} sh"
+                                    f"{'  ' + format_large_number(t2_val) if t2_val else ''}</span>"
+                                    f"</div>",
+                                    unsafe_allow_html=True,
+                                )
+                else:
+                    st.info("Insider flow data unavailable.")
+
+                # Layer 3: 13F Cluster
+                st.markdown("**Layer 3 — 13F Cluster Buying**")
+                clust_l3 = getattr(alt_data, "cluster_buying", None)
+                if clust_l3:
+                    st.markdown(
+                        f"<div style='padding:0.5rem 0.8rem;background:rgba(102,126,234,0.08);"
+                        f"border-left:3px solid #667eea;border-radius:0 8px 8px 0;margin-bottom:0.4rem'>"
+                        f"<span style='color:#9fa8da;font-weight:700'>{getattr(clust_l3, 'consensus_signal', 'N/A')}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    _new_ents = getattr(clust_l3, "new_entrants", []) or []
+                    _exits = getattr(clust_l3, "exits", []) or []
+                    if _new_ents:
+                        with st.expander(f"New Entrants / Accumulators ({len(_new_ents)})", expanded=False):
+                            for nh in _new_ents:
+                                st.markdown(f"  + **{getattr(nh, 'name', '?')}**  {getattr(nh, 'pct_held', 0):.2%} held  ({getattr(nh, 'pct_change', 0):+.2%} QoQ)")
+                    if _exits:
+                        with st.expander(f"Exits / Reducers ({len(_exits)})", expanded=False):
+                            for eh in _exits:
+                                st.markdown(f"  - **{getattr(eh, 'name', '?')}**  {getattr(eh, 'pct_held', 0):.2%} held  ({getattr(eh, 'pct_change', 0):+.2%} QoQ)")
+                else:
+                    st.info("13F cluster data unavailable.")
+
+                # Layer 4: Vanna/Charm
+                st.markdown("**Layer 4 — Vanna/Charm (Options Flow)**")
+                vc_l4 = getattr(alt_data, "vanna_charm", None)
+                if vc_l4:
+                    _l4c = st.columns(4)
+                    _l4c[0].metric("Net Vanna ($M)", f"${getattr(vc_l4, 'net_vanna', 0)/1e6:.1f}M")
+                    _l4c[1].metric("Net Charm ($M)", f"${getattr(vc_l4, 'net_charm', 0)/1e6:.1f}M")
+                    _l4c[2].metric("Vanna Signal", getattr(vc_l4, "vanna_signal", "N/A"))
+                    _l4c[3].metric("Charm Signal", getattr(vc_l4, "charm_signal", "N/A"))
+                    with st.expander("What are Vanna & Charm?", expanded=False):
+                        st.markdown(
+                            "**Vanna** = rate of change of delta with respect to implied vol. "
+                            "When IV drops (vol crush), dealers with positive net vanna must BUY shares to stay delta-neutral — supporting price.\n\n"
+                            "**Charm** = rate of change of delta with respect to time (theta decay). "
+                            "As options approach expiry, dealer hedges unwind — the direction depends on whether they are long or short calls/puts."
+                        )
+                else:
+                    st.info("Vanna/Charm data unavailable.")
+
+                # Layer 5: Congressional
+                st.markdown("**Layer 5 — Congressional Trades**")
+                cong_l5 = getattr(alt_data, "congressional", None)
+                if cong_l5:
+                    _l5c = st.columns(2)
+                    _l5c[0].metric("Congressional Bias", getattr(cong_l5, "net_congressional_bias", "N/A"))
+                    _l5c[1].metric("Alpha Signal", getattr(cong_l5, "alpha_signal", "N/A"))
+                    _cong_trades = getattr(cong_l5, "trades", []) or []
+                    if _cong_trades:
+                        with st.expander(f"Congressional Trade Records ({len(_cong_trades)})", expanded=False):
+                            cong_rows = []
+                            for ct in _cong_trades:
+                                cong_rows.append({
+                                    "Member": getattr(ct, "member_name", "?"),
+                                    "Date": getattr(ct, "transaction_date", "?"),
+                                    "Type": getattr(ct, "transaction_type", "?"),
+                                    "Amount": getattr(ct, "amount_range", "?"),
+                                    "House": getattr(ct, "house", "?"),
+                                })
+                            if cong_rows:
+                                st.dataframe(pd.DataFrame(cong_rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("Congressional trades data unavailable.")
+
+        # Analysts & Investors expander
+        _analyst_targets = data.get("analyst_targets", {})
+        _rec_summary = data.get("recommendations_summary")
+        _upgrades = data.get("upgrades_downgrades")
+        _inst_holders = data.get("institutional_holders")
+        _mf_holders = data.get("mutualfund_holders")
+        _current_price_ai = company_info.get("price")
+
+        with st.expander("📋 Analysts & Investors", expanded=False):
+            # Price target chart + metrics
+            if _analyst_targets and _current_price_ai:
+                _fig_pt2 = create_price_target_chart(_current_price_ai, _analyst_targets)
+                if _fig_pt2:
+                    st.plotly_chart(_fig_pt2, use_container_width=True)
+                ai_m = st.columns(5)
+                ai_m[0].metric("Current Price", f"${_current_price_ai:.2f}")
+                ai_m[1].metric("Analyst Mean", f"${_analyst_targets.get('mean', 0):.2f}" if _analyst_targets.get('mean') else "N/A")
+                ai_m[2].metric("Analyst Median", f"${_analyst_targets.get('median', 0):.2f}" if _analyst_targets.get('median') else "N/A")
+                ai_m[3].metric("Analyst Low", f"${_analyst_targets.get('low', 0):.2f}" if _analyst_targets.get('low') else "N/A")
+                ai_m[4].metric("Analyst High", f"${_analyst_targets.get('high', 0):.2f}" if _analyst_targets.get('high') else "N/A")
+
+            # Recommendation distribution chart + colored boxes
+            if _rec_summary is not None and len(_rec_summary) > 0:
+                st.markdown("**Analyst Recommendation Distribution**")
+                _rec_fig = create_recommendations_chart(_rec_summary)
+                if _rec_fig:
+                    st.plotly_chart(_rec_fig, use_container_width=True)
+                # Latest period summary boxes
+                try:
+                    _latest_rec = _rec_summary.iloc[0] if hasattr(_rec_summary, "iloc") else None
+                    if _latest_rec is not None:
+                        rec_categories = [
+                            ("Strong Buy", "strongBuy", "#00C853"),
+                            ("Buy", "buy", "#69F0AE"),
+                            ("Hold", "hold", "#FFD54F"),
+                            ("Sell", "sell", "#FF8A65"),
+                            ("Strong Sell", "strongSell", "#FF1744"),
+                        ]
+                        rec_box_cols = st.columns(5)
+                        for rbi, (rlbl, rkey, rclr) in enumerate(rec_categories):
+                            rval = _latest_rec.get(rkey, 0) if hasattr(_latest_rec, "get") else getattr(_latest_rec, rkey, 0)
+                            rec_box_cols[rbi].markdown(
+                                f"<div style='text-align:center;padding:0.6rem;background:{rclr}18;"
+                                f"border:1px solid {rclr}55;border-radius:8px'>"
+                                f"<div style='color:{rclr};font-size:1.4rem;font-weight:800'>{rval or 0}</div>"
+                                f"<div style='color:#888;font-size:0.7rem'>{rlbl}</div>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                except Exception:
+                    pass
+
+            # Recent analyst actions
+            if _upgrades is not None and len(_upgrades) > 0:
+                st.markdown("**Recent Analyst Actions**")
+                try:
+                    ud_display = _upgrades.reset_index(drop=False) if hasattr(_upgrades, "reset_index") else _upgrades
+                    st.dataframe(ud_display.head(15), use_container_width=True, hide_index=True)
+                except Exception:
+                    st.dataframe(_upgrades.head(15) if hasattr(_upgrades, "head") else _upgrades, use_container_width=True, hide_index=True)
+
+            # Institutional holders table
+            if _inst_holders is not None and len(_inst_holders) > 0:
+                st.markdown("**Top Institutional Holders**")
+                try:
+                    st.dataframe(_inst_holders.head(15), use_container_width=True, hide_index=True)
+                except Exception:
+                    st.dataframe(_inst_holders, use_container_width=True, hide_index=True)
+
+            # Mutual fund holders table
+            if _mf_holders is not None and len(_mf_holders) > 0:
+                st.markdown("**Top Mutual Fund Holders**")
+                try:
+                    st.dataframe(_mf_holders.head(15), use_container_width=True, hide_index=True)
+                except Exception:
+                    st.dataframe(_mf_holders, use_container_width=True, hide_index=True)
 
         cal = data.get("event_calendar", {})
         if cal:
