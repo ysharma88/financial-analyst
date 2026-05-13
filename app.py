@@ -197,6 +197,69 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
+# Authentication gate
+# ---------------------------------------------------------------------------
+def _auth_gate():
+    """Block unauthenticated / unauthorised users before rendering anything.
+
+    Two modes:
+      1. Production (Streamlit Cloud with [auth] in secrets.toml):
+         - Requires Google OIDC login.
+         - Approved email list is read from st.secrets["APPROVED_EMAILS"]
+           (comma-separated string or TOML array).
+      2. Development (no [auth] block in secrets.toml):
+         - st.user.is_logged_in is always False; auth is skipped so local
+           dev works without OAuth credentials.
+    """
+    auth_configured = "auth" in st.secrets
+
+    if not auth_configured:
+        # Local dev — skip auth, show a dev-mode banner
+        return
+
+    if not st.user.is_logged_in:
+        st.markdown(
+            "<div style='display:flex;flex-direction:column;align-items:center;"
+            "justify-content:center;height:80vh;gap:1.2rem'>"
+            "<span style='font-size:2.8rem'>📊</span>"
+            "<h1 style='font-size:1.6rem;margin:0'>Financial Analyst</h1>"
+            "<p style='color:#888;margin:0'>Restricted access — sign in to continue</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        col_l, col_btn, col_r = st.columns([3, 2, 3])
+        with col_btn:
+            st.button(
+                "Sign in with Google",
+                on_click=st.login,
+                kwargs={"provider": "google"},
+                use_container_width=True,
+                type="primary",
+            )
+        st.stop()
+
+    # ── Authorisation: check email against approved list ────────────────────
+    user_email = (st.user.get("email") or "").strip().lower()
+
+    raw_approved = st.secrets.get("APPROVED_EMAILS", "")
+    if isinstance(raw_approved, str):
+        approved = {e.strip().lower() for e in raw_approved.split(",") if e.strip()}
+    else:
+        # TOML array: ["a@b.com", "c@d.com"]
+        approved = {e.strip().lower() for e in raw_approved if e.strip()}
+
+    if approved and user_email not in approved:
+        st.error(
+            f"Access denied. **{user_email or 'Unknown user'}** is not on the approved list.\n\n"
+            "Contact the administrator to request access."
+        )
+        st.button("Sign out", on_click=st.logout, type="secondary")
+        st.stop()
+
+
+_auth_gate()
+
+# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
@@ -208,6 +271,20 @@ with st.sidebar:
         "Equity Research Platform</span></div>",
         unsafe_allow_html=True,
     )
+
+    # ── User info + logout (only shown when auth is active) ──────────────────
+    if "auth" in st.secrets and st.user.is_logged_in:
+        _uname = st.user.get("name") or st.user.get("email") or "User"
+        _uemail = st.user.get("email") or ""
+        st.markdown(
+            f"<div style='padding:0.3rem 0 0.6rem;font-size:0.78rem;color:#aaa'>"
+            f"Signed in as <b style='color:#fff'>{_uname}</b>"
+            + (f"<br><span style='color:#555'>{_uemail}</span>" if _uemail else "")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+        st.button("Sign out", on_click=st.logout, use_container_width=True, key="_sidebar_logout")
+
     st.divider()
 
     # ── Config paths ──
