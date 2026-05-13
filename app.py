@@ -3388,13 +3388,20 @@ if analyze_btn:
         with ex_c1:
             st.markdown("<div class='rpt-section'>VALUATION</div>", unsafe_allow_html=True)
             iv_str = f"${dcf.intrinsic_value:.0f}" if dcf and dcf.intrinsic_value else "—"
-            mos_str = f"{dcf.margin_of_safety:+.0f}%" if dcf and dcf.margin_of_safety else "—"
+            mos_str = f"{dcf.margin_of_safety:+.0%}" if dcf and dcf.margin_of_safety is not None else "—"
             dcf_label = (dcf.valuation_label or "—") if dcf else "—"
             st.markdown(
+                f"<div title='DCF 3-Stage Model: projects free cash flows for 5 years (high growth), "
+                f"5 years (fade), then terminal value. Discounted at WACC. Compare to current price to find under/overvaluation.' "
+                f"style='cursor:help'>"
                 f"<div style='font-size:1.5rem;font-weight:700;color:#fff'>{iv_str}</div>"
                 f"<div style='color:#888;font-size:0.78rem'>DCF Intrinsic Value</div>"
+                f"</div>"
                 f"<div style='margin-top:0.4rem;font-size:0.82rem;color:#aaa'>"
-                f"MoS: <b style='color:#fff'>{mos_str}</b>  ·  {dcf_label}</div>",
+                f"<span title='Margin of Safety = (Intrinsic Value − Current Price) / Intrinsic Value. "
+                f"Buffett target: buy only at &gt;30% MoS. Negative = paying above fair value.' "
+                f"style='cursor:help'>MoS: <b style='color:#fff'>{mos_str}</b></span>"
+                f"  ·  {dcf_label}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -3405,10 +3412,23 @@ if analyze_btn:
             altman_zone = (qs.altman_zone or "") if qs else ""
             beneish_str = ("🚨 Flag" if qs and qs.beneish_flag else "✅ Clean") if qs else "—"
             st.markdown(
+                f"<div title='Piotroski F-Score: 9-point checklist of profitability, leverage, and efficiency signals. "
+                f"0–2 = weak (short candidate), 3–6 = average, 7–9 = strong (long candidate). "
+                f"Based on Joseph Piotroski (2000) — historically separates winners from losers in value stocks.' "
+                f"style='cursor:help'>"
                 f"<div style='font-size:1.5rem;font-weight:700;color:#fff'>F {piotr_str}</div>"
                 f"<div style='color:#888;font-size:0.78rem'>Piotroski F-Score</div>"
+                f"</div>"
                 f"<div style='margin-top:0.4rem;font-size:0.82rem;color:#aaa'>"
-                f"Altman Z: <b style='color:#fff'>{altman_str}</b> {altman_zone}  ·  Beneish: {beneish_str}</div>",
+                f"<span title='Altman Z-Score: bankruptcy prediction model using 5 financial ratios. "
+                f"&gt;2.99 = Safe Zone (unlikely to go bankrupt), 1.81–2.99 = Grey Zone (watch closely), "
+                f"&lt;1.81 = Distress Zone (high bankruptcy risk). Created by Edward Altman (1968).' "
+                f"style='cursor:help'>Altman Z: <b style='color:#fff'>{altman_str}</b> {altman_zone}</span>"
+                f"  ·  "
+                f"<span title='Beneish M-Score: earnings manipulation detector using 8 financial ratios. "
+                f"Score &gt; −1.78 suggests possible earnings manipulation. "
+                f"Correctly identified Enron and WorldCom before their collapses. Named after Prof. Messod Beneish (1999).' "
+                f"style='cursor:help'>Beneish: {beneish_str}</span></div>",
                 unsafe_allow_html=True,
             )
 
@@ -3418,10 +3438,23 @@ if analyze_btn:
             maxdd_str = f"{rp.max_drawdown:.1%}" if rp and rp.max_drawdown else "—"
             var_str = f"{rp.var_95:.2%}" if rp and rp.var_95 else "—"
             st.markdown(
+                f"<div title='Sharpe Ratio: annualised excess return per unit of volatility (vs risk-free rate). "
+                f"&gt;1.0 = good, &gt;2.0 = excellent, &lt;0 = underperforming cash. "
+                f"Use to compare risk-adjusted returns across different stocks.' "
+                f"style='cursor:help'>"
                 f"<div style='font-size:1.5rem;font-weight:700;color:#fff'>{sharpe_str}</div>"
                 f"<div style='color:#888;font-size:0.78rem'>Sharpe Ratio</div>"
+                f"</div>"
                 f"<div style='margin-top:0.4rem;font-size:0.82rem;color:#aaa'>"
-                f"Max DD: <b style='color:#fff'>{maxdd_str}</b>  ·  VaR 95%: <b style='color:#fff'>{var_str}</b></div>",
+                f"<span title='Max Drawdown: largest peak-to-trough price decline in the analysis period. "
+                f"Measures worst-case loss if you bought at the top and held to the bottom. "
+                f"Key psychological risk metric — can you stomach this loss?' "
+                f"style='cursor:help'>Max DD: <b style='color:#fff'>{maxdd_str}</b></span>"
+                f"  ·  "
+                f"<span title='Value at Risk (95%): statistical estimate of the maximum daily loss "
+                f"you would expect to see on 95% of trading days. On the remaining 5% of days, "
+                f"losses could exceed this figure (tail risk).' "
+                f"style='cursor:help'>VaR 95%: <b style='color:#fff'>{var_str}</b></span></div>",
                 unsafe_allow_html=True,
             )
 
